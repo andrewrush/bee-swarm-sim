@@ -1,0 +1,6 @@
+bee_sim
+*.o
+*.log
+*.tmp
+build/
+trace.json

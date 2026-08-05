@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐝 Bee Swarm Simulator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0f172a;
+    color: #e2e8f0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
+    padding: 12px 24px;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
+  h1 span { color: #fbbf24; }
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  button {
+    background: #334155;
+    color: #e2e8f0;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+  }
+  button:hover { background: #475569; }
+  button.primary { background: #f59e0b; color: #0f172a; font-weight: 600; }
+  button.primary:hover { background: #fbbf24; }
+  input[type="range"] {
+    width: 120px;
+    accent-color: #f59e0b;
+  }
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  #canvas-container {
+    flex: 1;
+    position: relative;
+    background: #0b1120;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .overlay {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid #334155;
+    font-size: 12px;
+    line-height: 1.8;
+    min-width: 180px;
+  }
+  .overlay h3 {
+    font-size: 13px;
+    color: #fbbf24;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .stat-value { color: #fbbf24; font-weight: 600; font-family: monospace; }
+  .sidebar {
+    width: 280px;
+    background: #1e293b;
+    border-left: 1px solid #334155;
+    padding: 20px;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+  .sidebar h2 {
+    font-size: 14px;
+    color: #fbbf24;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .timeline {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #334155;
+  }
+  .timeline h2 { margin-bottom: 12px; }
+  .chart-container {
+    height: 120px;
+    background: #0f172a;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .chart-container canvas { width: 100%; height: 100%; }
+  .file-input {
+    margin-top: 16px;
+    padding: 12px;
+    background: #0f172a;
+    border-radius: 8px;
+    border: 1px dashed #475569;
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .file-input input { display: none; }
+  .file-input label {
+    cursor: pointer;
+    display: block;
+    padding: 8px;
+  }
+  .file-input label:hover { color: #fbbf24; }
+  .state-bars {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+    background: #334155;
+  }
+  .state-bar {
+    height: 100%;
+    transition: width 0.3s ease;
+  }
+  .tooltip {
+    position: absolute;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid #475569;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 100;
+    display: none;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🐝 <span>Bee</span> Swarm Simulator</h1>
+  <div class="controls">
+    <button id="btn-reset" onclick="resetSim()">↺ Reset</button>
+    <button id="btn-play" class="primary" onclick="togglePlay()">▶ Play</button>
+    <label style="font-size:12px">Speed:</label>
+    <input type="range" id="speed" min="1" max="10" value="3">
+    <span id="speed-val" style="font-size:12px;min-width:24px">3x</span>
+    <button onclick="exportTrace()">💾 Export JSON</button>
+  </div>
+</header>
+
+<div class="main">
+  <div id="canvas-container">
+    <canvas id="simCanvas"></canvas>
+    <div class="overlay">
+      <h3>📊 Metrics</h3>
+      <div class="stat-row"><span>Tick</span><span class="stat-value" id="m-tick">0</span></div>
+      <div class="stat-row"><span>Hive Nectar</span><span class="stat-value" id="m-nectar">0</span></div>
+      <div class="stat-row"><span>Efficiency</span><span class="stat-value" id="m-eff">0.00</span></div>
+      <div class="stat-row"><span>Trips</span><span class="stat-value" id="m-trips">0</span></div>
+      <div class="stat-row"><span>Discovered</span><span class="stat-value" id="m-disc">0/10</span></div>
+      <div style="margin-top:10px">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Agent States</div>
+        <div class="state-bars" id="state-bars"></div>
+      </div>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  <div class="sidebar">
+    <h2>Legend</h2>
+    <div class="legend-item"><div class="dot" style="background:#fbbf24"></div>Worker (foraging)</div>
+    <div class="legend-item"><div class="dot" style="background:#f97316"></div>Scout (exploring)</div>
+    <div class="legend-item"><div class="dot" style="background:#22c55e"></div>Returning with nectar</div>
+    <div class="legend-item"><div class="dot" style="background:#a855f7"></div>Dancing (waggle)</div>
+    <div class="legend-item"><div class="dot" style="background:#64748b"></div>Resting</div>
+    <div class="legend-item"><div class="dot" style="background:#ec4899;box-shadow:0 0 6px #ec4899"></div>Flower patch</div>
+    <div class="legend-item"><div class="dot" style="background:#fbbf24;box-shadow:0 0 8px #fbbf24;border:2px solid #fff"></div>Hive</div>
+
+    <div class="timeline">
+      <h2>Nectar Over Time</h2>
+      <div class="chart-container"><canvas id="nectarChart"></canvas></div>
+      <h2>Energy Efficiency</h2>
+      <div class="chart-container"><canvas id="effChart"></canvas></div>
+    </div>
+
+    <div class="file-input">
+      <label for="file-upload">
+        📁 Load trace.json from C++ sim
+        <br><small>Or run built-in JS simulator</small>
+      </label>
+      <input type="file" id="file-upload" accept=".json" onchange="loadTrace(event)">
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== CONFIG ====================
+const NUM_BEES = 120;
+const NUM_SCOUTS = 15;
+const NUM_PATCHES = 10;
+const TICKS = 300;
+const TRACE_INTERVAL = 5;
+const SPEED = 1.0;
+const SCOUT_SPEED = 2.5;
+const ENERGY_COST_MOVE = 0.15;
+const ENERGY_RECOVER = 2.0;
+const CARRY_CAPACITY = 10.0;
+const DETECT_RADIUS = 12.0;
+const PATCH_MAX_DIST = 80.0;
+const HIVE = {x: 0, y: 0};
+
+// ==================== STATE ====================
+let patches = [];
+let bees = [];
+let danceScore = [];
+let hiveNectar = 0;
+let energySpent = 0;
+let totalTrips = 0;
+let tick = 0;
+let playing = false;
+let speed = 3;
+let trace = [];
+let useTrace = false;
+let traceFrame = 0;
+
+// ==================== CANVAS ====================
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+const nChart = document.getElementById('nectarChart').getContext('2d');
+const eChart = document.getElementById('effChart').getContext('2d');
+const container = document.getElementById('canvas-container');
+
+let scale = 3.5;
+let offsetX = 0, offsetY = 0;
+let isDragging = false;
+let dragStart = {x: 0, y: 0};
+
+function resize() {
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+  offsetX = canvas.width / 2;
+  offsetY = canvas.height / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ==================== MATH ====================
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function moveTowards(from, to, step) {
+  const d = dist(from, to);
+  if (d <= step) return {...to};
+  return {
+    x: from.x + (to.x - from.x) / d * step,
+    y: from.y + (to.y - from.y) / d * step
+  };
+}
+function randn(mean, std) {
+  let u = 0, v = 0;
+  while(u === 0) u = Math.random();
+  while(v === 0) v = Math.random();
+  return mean + std * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+// ==================== INIT ====================
+function initSim() {
+  patches = [];
+  for (let i = 0; i < NUM_PATCHES; i++) {
+    const angle = (i / NUM_PATCHES) * Math.PI * 2 + Math.random() * 0.5;
+    const r = 30 + Math.random() * (PATCH_MAX_DIST - 30);
+    patches.push({
+      id: i,
+      x: Math.cos(angle) * r,
+      y: Math.sin(angle) * r,
+      nectar: 200 + Math.random() * 600,
+      initialNectar: 0,
+      discovered: false
+    });
+    patches[i].initialNectar = patches[i].nectar;
+  }
+
+  bees = [];
+  for (let i = 0; i < NUM_BEES; i++) {
+    bees.push({
+      id: i,
+      role: i < NUM_SCOUTS ? 'scout' : 'worker',
+      state: 'resting',
+      x: 0, y: 0,
+      energy: 100,
+      carrying: 0,
+      targetPatch: -1,
+      danceTimer: 0,
+      foundNewPatch: false,
+      tripsCompleted: 0,
+      totalNectarDelivered: 0,
+      scoutDirX: 0,
+      scoutDirY: 0
+    });
+  }
+
+  danceScore = new Array(NUM_PATCHES).fill(0);
+  hiveNectar = 0;
+  energySpent = 0;
+  totalTrips = 0;
+  tick = 0;
+  trace = [];
+  useTrace = false;
+  traceFrame = 0;
+}
+
+// ==================== SIMULATION STEP ====================
+function stepSim() {
+  if (useTrace) {
+    if (traceFrame < trace.length - 1) traceFrame++;
+    render();
+    updateCharts();
+    return;
+  }
+
+  for (let i = 0; i < NUM_PATCHES; i++) danceScore[i] *= 0.95;
+
+  for (let bee of bees) {
+    const energyBefore = bee.energy;
+
+    switch (bee.state) {
+      case 'resting':
+        bee.energy = Math.min(100, bee.energy + ENERGY_RECOVER);
+        if (bee.energy > 80) {
+          if (bee.role === 'scout') {
+            bee.state = 'exploring';
+            bee.x = HIVE.x; bee.y = HIVE.y;
+            bee.foundNewPatch = false;
+            bee.targetPatch = -1;
+            const angle = Math.random() * Math.PI * 2;
+            bee.scoutDirX = Math.cos(angle);
+            bee.scoutDirY = Math.sin(angle);
+          } else {
+            const totalScore = danceScore.reduce((a,b) => a+b, 0);
+            if (totalScore > 0.1) {
+              const r = Math.random() * totalScore;
+              let acc = 0, chosen = -1;
+              for (let i = 0; i < NUM_PATCHES; i++) {
+                acc += danceScore[i];
+                if (r <= acc) { chosen = i; break; }
+              }
+              if (chosen >= 0 && patches[chosen].nectar > 0) {
+                bee.targetPatch = chosen;
+                bee.state = 'foraging';
+                bee.x = HIVE.x; bee.y = HIVE.y;
+              }
+            }
+          }
+        }
+        break;
+
+      case 'exploring':
+        bee.x += (bee.scoutDirX + randn(0, 0.3)) * SCOUT_SPEED;
+        bee.y += (bee.scoutDirY + randn(0, 0.3)) * SCOUT_SPEED;
+        bee.energy -= ENERGY_COST_MOVE * (SCOUT_SPEED / SPEED);
+        for (let patch of patches) {
+          if (patch.nectar > 0 && dist(bee, patch) < DETECT_RADIUS) {
+            bee.targetPatch = patch.id;
+            patch.discovered = true;
+            bee.foundNewPatch = true;
+            bee.state = 'returning';
+            break;
+          }
+        }
+        if (bee.energy < 20 && bee.state === 'exploring') {
+          bee.state = 'returning';
+          bee.foundNewPatch = false;
+          bee.targetPatch = -1;
+        }
+        break;
+
+      case 'foraging':
+        if (bee.targetPatch < 0 || patches[bee.targetPatch].nectar <= 0) {
+          bee.state = 'returning';
+        } else {
+          const patch = patches[bee.targetPatch];
+          Object.assign(bee, moveTowards(bee, patch, SPEED));
+          bee.energy -= ENERGY_COST_MOVE;
+          if (dist(bee, patch) < 2.0) {
+            const take = Math.min(CARRY_CAPACITY - bee.carrying, patch.nectar, 2.0);
+            patch.nectar -= take;
+            bee.carrying += take;
+            if (bee.carrying >= CARRY_CAPACITY || patch.nectar <= 0 || bee.energy < 25) {
+              bee.state = 'returning';
+            }
+          }
+          if (bee.energy < 10) bee.state = 'returning';
+        }
+        break;
+
+      case 'returning':
+        Object.assign(bee, moveTowards(bee, HIVE, SPEED));
+        bee.energy -= ENERGY_COST_MOVE;
+        if (dist(bee, HIVE) < 2.0) {
+          hiveNectar += bee.carrying;
+          bee.totalNectarDelivered += bee.carrying;
+          bee.carrying = 0;
+          bee.tripsCompleted++;
+          totalTrips++;
+          if (bee.role === 'scout' && bee.foundNewPatch && bee.targetPatch >= 0) {
+            bee.state = 'dancing';
+            bee.danceTimer = 10;
+          } else {
+            bee.state = 'resting';
+          }
+        }
+        break;
+
+      case 'dancing':
+        if (bee.targetPatch >= 0) {
+          const patch = patches[bee.targetPatch];
+          const d = Math.max(1, dist(HIVE, patch));
+          const score = patch.nectar / (d + 1);
+          danceScore[bee.targetPatch] += score;
+        }
+        bee.danceTimer -= 1;
+        bee.energy -= 0.05;
+        if (bee.danceTimer <= 0) bee.state = 'resting';
+        break;
+    }
+
+    const spent = energyBefore - bee.energy;
+    if (spent > 0) energySpent += spent;
+    if (bee.energy <= 0) {
+      bee.energy = 0; bee.carrying = 0;
+      bee.state = 'resting';
+      bee.x = HIVE.x; bee.y = HIVE.y;
+    }
+  }
+
+  tick++;
+
+  if (tick % TRACE_INTERVAL === 0 || tick === TICKS - 1) {
+    trace.push({
+      tick, hiveNectar, energySpent, totalTrips,
+      efficiency: hiveNectar / Math.max(1, energySpent),
+      patches: patches.map(p => ({
+        id: p.id, x: p.x, y: p.y,
+        nectar: p.nectar,
+        discovered: p.discovered,
+        depleted: p.nectar <= 0
+      })),
+      bees: bees.map(b => ({
+        id: b.id, role: b.role, state: b.state,
+        x: b.x, y: b.y,
+        energy: b.energy,
+        carrying: b.carrying,
+        target: b.targetPatch
+      }))
+    });
+  }
+}
+
+// ==================== RENDER ====================
+function worldToScreen(wx, wy) {
+  return {
+    x: offsetX + wx * scale,
+    y: offsetY + wy * scale
+  };
+}
+
+function render() {
+  ctx.fillStyle = '#0b1120';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 1;
+  const gridSize = 50 * scale;
+  const startX = offsetX % gridSize;
+  const startY = offsetY % gridSize;
+  for (let x = startX - gridSize; x < canvas.width; x += gridSize) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = startY - gridSize; y < canvas.height; y += gridSize) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+
+  let currentPatches, currentBees, currentHiveNectar, currentEnergySpent, currentTrips;
+
+  if (useTrace) {
+    const frame = trace[traceFrame] || trace[trace.length - 1];
+    currentPatches = frame.patches;
+    currentBees = frame.bees;
+    currentHiveNectar = frame.hiveNectar;
+    currentEnergySpent = frame.energySpent;
+    currentTrips = frame.totalTrips;
+    tick = frame.tick;
+  } else {
+    currentPatches = patches;
+    currentBees = bees;
+    currentHiveNectar = hiveNectar;
+    currentEnergySpent = energySpent;
+    currentTrips = totalTrips;
+  }
+
+  // Draw patches
+  for (let p of currentPatches) {
+    const pos = worldToScreen(p.x, p.y);
+    const size = 3 + (p.nectar / p.initialNectar) * 12;
+    const alpha = p.discovered ? 1 : 0.3;
+
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = p.nectar > 0 ? '#ec4899' : '#475569';
+    ctx.fill();
+
+    if (p.discovered && p.nectar > 0) {
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Nectar bar
+    if (p.discovered) {
+      const barW = size * 2;
+      const barH = 3;
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW, barH);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW * (p.nectar / p.initialNectar), barH);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw hive
+  const hivePos = worldToScreen(HIVE.x, HIVE.y);
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2 - Math.PI / 6;
+    const hx = hivePos.x + Math.cos(angle) * 12;
+    const hy = hivePos.y + Math.sin(angle) * 12;
+    if (i === 0) ctx.moveTo(hx, hy);
+    else ctx.lineTo(hx, hy);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#fbbf24';
+  ctx.fill();
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Hive nectar glow
+  const glow = Math.min(20, currentHiveNectar / 50);
+  if (glow > 0) {
+    ctx.beginPath();
+    ctx.arc(hivePos.x, hivePos.y, 12 + glow, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(251, 191, 36, ${Math.min(0.3, glow/40)})`;
+    ctx.fill();
+  }
+
+  // Draw bees
+  for (let b of currentBees) {
+    const pos = worldToScreen(b.x, b.y);
+    let color, size = 2.5;
+
+    switch (b.state) {
+      case 'exploring': color = '#f97316'; size = 2.8; break;
+      case 'foraging': color = '#fbbf24'; size = 3; break;
+      case 'returning': color = '#22c55e'; size = 3; break;
+      case 'dancing': color = '#a855f7'; size = 3.5; break;
+      default: color = '#64748b'; size = 2;
+    }
+
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    if (b.state === 'dancing') {
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, size + 4 + Math.sin(Date.now() / 100) * 2, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    if (b.carrying > 0) {
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, size + 1.5, 0, Math.PI * 2);
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  // Update metrics
+  document.getElementById('m-tick').textContent = tick;
+  document.getElementById('m-nectar').textContent = Math.floor(currentHiveNectar);
+  document.getElementById('m-eff').textContent = (currentHiveNectar / Math.max(1, currentEnergySpent)).toFixed(3);
+  document.getElementById('m-trips').textContent = currentTrips;
+  const disc = currentPatches.filter(p => p.discovered).length;
+  document.getElementById('m-disc').textContent = `${disc}/${NUM_PATCHES}`;
+
+  // State bars
+  const states = {resting:0, exploring:0, foraging:0, returning:0, dancing:0};
+  for (let b of currentBees) states[b.state] = (states[b.state] || 0) + 1;
+  const total = currentBees.length;
+  const colors = {resting:'#64748b', exploring:'#f97316', foraging:'#fbbf24', returning:'#22c55e', dancing:'#a855f7'};
+  const bars = document.getElementById('state-bars');
+  bars.innerHTML = '';
+  for (let s in states) {
+    const div = document.createElement('div');
+    div.className = 'state-bar';
+    div.style.width = (states[s] / total * 100) + '%';
+    div.style.background = colors[s];
+    bars.appendChild(div);
+  }
+}
+
+// ==================== CHARTS ====================
+const nectarHistory = [];
+const effHistory = [];
+
+function updateCharts() {
+  if (useTrace) {
+    const frame = trace[traceFrame];
+    if (!frame) return;
+    nectarHistory.push(frame.hiveNectar);
+    effHistory.push(frame.efficiency);
+  } else {
+    nectarHistory.push(hiveNectar);
+    effHistory.push(hiveNectar / Math.max(1, energySpent));
+  }
+  if (nectarHistory.length > 200) { nectarHistory.shift(); effHistory.shift(); }
+
+  drawChart(nChart, nectarHistory, '#fbbf24', 'Nectar');
+  drawChart(eChart, effHistory, '#22c55e', 'Efficiency');
+}
+
+function drawChart(c, data, color, label) {
+  const w = c.canvas.width = c.canvas.clientWidth;
+  const h = c.canvas.height = c.canvas.clientHeight;
+  c.clearRect(0, 0, w, h);
+  if (data.length < 2) return;
+
+  const max = Math.max(...data, 0.001);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+
+  c.beginPath();
+  c.strokeStyle = color;
+  c.lineWidth = 2;
+  for (let i = 0; i < data.length; i++) {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((data[i] - min) / range) * (h - 20) - 10;
+    if (i === 0) c.moveTo(x, y);
+    else c.lineTo(x, y);
+  }
+  c.stroke();
+
+  c.fillStyle = '#94a3b8';
+  c.font = '10px sans-serif';
+  c.fillText(max.toFixed(1), 4, 12);
+  c.fillText(min.toFixed(1), 4, h - 4);
+}
+
+// ==================== CONTROLS ====================
+function togglePlay() {
+  playing = !playing;
+  document.getElementById('btn-play').textContent = playing ? '⏸ Pause' : '▶ Play';
+}
+
+function resetSim() {
+  playing = false;
+  document.getElementById('btn-play').textContent = '▶ Play';
+  initSim();
+  nectarHistory.length = 0;
+  effHistory.length = 0;
+  render();
+}
+
+function exportTrace() {
+  const blob = new Blob([JSON.stringify(trace, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'trace.json';
+  a.click();
+}
+
+function loadTrace(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    trace = JSON.parse(ev.target.result);
+    useTrace = true;
+    traceFrame = 0;
+    playing = false;
+    document.getElementById('btn-play').textContent = '▶ Play';
+    nectarHistory.length = 0;
+    effHistory.length = 0;
+    for (let f of trace) {
+      nectarHistory.push(f.hiveNectar);
+      effHistory.push(f.efficiency);
+    }
+    render();
+    updateCharts();
+  };
+  reader.readAsText(file);
+}
+
+// Speed control
+document.getElementById('speed').addEventListener('input', (e) => {
+  speed = parseInt(e.target.value);
+  document.getElementById('speed-val').textContent = speed + 'x';
+});
+
+// Pan & zoom
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 0.9 : 1.1;
+  scale *= factor;
+  scale = Math.max(0.5, Math.min(20, scale));
+  render();
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  dragStart = {x: e.clientX - offsetX, y: e.clientY - offsetY};
+});
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  offsetX = e.clientX - dragStart.x;
+  offsetY = e.clientY - dragStart.y;
+  render();
+});
+window.addEventListener('mouseup', () => isDragging = false);
+
+// Tooltip
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const wx = (mx - offsetX) / scale;
+  const wy = (my - offsetY) / scale;
+
+  let currentBees, currentPatches;
+  if (useTrace) {
+    const frame = trace[traceFrame];
+    currentBees = frame.bees;
+    currentPatches = frame.patches;
+  } else {
+    currentBees = bees;
+    currentPatches = patches;
+  }
+
+  let found = null;
+  for (let b of currentBees) {
+    const sp = worldToScreen(b.x, b.y);
+    if (Math.hypot(sp.x - mx, sp.y - my) < 8) {
+      found = `Bee #${b.id} (${b.role})<br>State: ${b.state}<br>Energy: ${b.energy.toFixed(1)}<br>Carrying: ${b.carrying.toFixed(1)}`;
+      break;
+    }
+  }
+  if (!found) {
+    for (let p of currentPatches) {
+      const sp = worldToScreen(p.x, p.y);
+      if (Math.hypot(sp.x - mx, sp.y - my) < 15) {
+        found = `Patch #${p.id}<br>Nectar: ${p.nectar.toFixed(1)}<br>Discovered: ${p.discovered ? 'yes' : 'no'}`;
+        break;
+      }
+    }
+  }
+
+  const tip = document.getElementById('tooltip');
+  if (found) {
+    tip.innerHTML = found;
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX + 12) + 'px';
+    tip.style.top = (e.clientY + 12) + 'px';
+  } else {
+    tip.style.display = 'none';
+  }
+});
+
+// ==================== MAIN LOOP ====================
+let lastTime = 0;
+function loop(timestamp) {
+  if (playing) {
+    const dt = timestamp - lastTime;
+    if (dt > 1000 / (speed * 10)) {
+      if (useTrace) {
+        if (traceFrame < trace.length - 1) traceFrame++;
+        else playing = false;
+      } else {
+        if (tick < TICKS) {
+          stepSim();
+          if (tick % 2 === 0) updateCharts();
+        } else {
+          playing = false;
+        }
+      }
+      lastTime = timestamp;
+    }
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+
+// Init
+initSim();
+render();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
