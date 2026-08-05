@@ -46,6 +46,13 @@ clang++ -std=c++17 -O2 main.cpp -o bee_sim
 - Agent state distribution
 - Patch discovery rate
 
+## 📱 Mobile & Infinite Mode
+
+- Responsive layout for portrait and landscape orientations
+- Touch gestures: pan (1 finger), zoom (pinch), hover (tooltip)
+- Infinite simulation mode: new flower patches regenerate automatically when depleted
+- Sidebar collapses to drawer on mobile portrait
+
 ## 📝 License
 
 MIT

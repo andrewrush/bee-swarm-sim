@@ -2,167 +2,182 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>🐝 Bee Swarm Simulator</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f172a;
+    --bg-dark: #0b1120;
+    --panel: #1e293b;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #fbbf24;
+    --accent-btn: #f59e0b;
+  }
   body {
-    background: #0f172a;
-    color: #e2e8f0;
+    background: var(--bg);
+    color: var(--text);
     font-family: 'Segoe UI', system-ui, sans-serif;
     overflow: hidden;
     height: 100vh;
     display: flex;
     flex-direction: column;
+    touch-action: none;
   }
   header {
-    background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%);
-    padding: 12px 24px;
-    border-bottom: 1px solid #334155;
+    background: linear-gradient(90deg, var(--panel) 0%, var(--bg) 100%);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
+    gap: 8px;
+    flex-wrap: wrap;
   }
-  h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
-  h1 span { color: #fbbf24; }
+  h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
+  h1 span { color: var(--accent); }
   .controls {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
-  button {
-    background: #334155;
-    color: #e2e8f0;
+  button, .btn {
+    background: var(--border);
+    color: var(--text);
     border: none;
-    padding: 6px 16px;
+    padding: 6px 12px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 13px;
     transition: all 0.2s;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
   }
+  button:active, .btn:active { transform: scale(0.95); }
   button:hover { background: #475569; }
-  button.primary { background: #f59e0b; color: #0f172a; font-weight: 600; }
-  button.primary:hover { background: #fbbf24; }
+  button.primary { background: var(--accent-btn); color: var(--bg); font-weight: 600; }
+  button.primary:hover { background: var(--accent); }
   input[type="range"] {
-    width: 120px;
-    accent-color: #f59e0b;
+    width: 80px;
+    accent-color: var(--accent-btn);
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
   }
   .main {
     display: flex;
     flex: 1;
     overflow: hidden;
+    position: relative;
   }
   #canvas-container {
     flex: 1;
     position: relative;
-    background: #0b1120;
+    background: var(--bg-dark);
+    min-width: 0;
   }
-  canvas { display: block; width: 100%; height: 100%; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
   .overlay {
     position: absolute;
-    top: 12px;
-    left: 12px;
-    background: rgba(15, 23, 42, 0.85);
+    top: 10px;
+    left: 10px;
+    background: rgba(15, 23, 42, 0.9);
     backdrop-filter: blur(8px);
-    padding: 16px;
-    border-radius: 12px;
-    border: 1px solid #334155;
-    font-size: 12px;
-    line-height: 1.8;
-    min-width: 180px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+    line-height: 1.7;
+    min-width: 150px;
+    max-width: 220px;
   }
   .overlay h3 {
-    font-size: 13px;
-    color: #fbbf24;
-    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--accent);
+    margin-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: 1px;
   }
-  .stat-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-  }
-  .stat-value { color: #fbbf24; font-weight: 600; font-family: monospace; }
+  .stat-row { display: flex; justify-content: space-between; gap: 12px; }
+  .stat-value { color: var(--accent); font-weight: 600; font-family: monospace; }
   .sidebar {
-    width: 280px;
-    background: #1e293b;
-    border-left: 1px solid #334155;
-    padding: 20px;
+    width: 260px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 16px;
     overflow-y: auto;
     flex-shrink: 0;
+    transition: transform 0.3s ease;
   }
+  .sidebar.hidden { transform: translateX(100%); }
   .sidebar h2 {
-    font-size: 14px;
-    color: #fbbf24;
-    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--accent);
+    margin-bottom: 12px;
     text-transform: uppercase;
     letter-spacing: 1px;
   }
   .legend-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-    font-size: 12px;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
   }
   .dot {
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     flex-shrink: 0;
   }
-  .timeline {
-    margin-top: 20px;
-    padding-top: 20px;
-    border-top: 1px solid #334155;
-  }
-  .timeline h2 { margin-bottom: 12px; }
+  .timeline { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .timeline h2 { margin-bottom: 10px; }
   .chart-container {
-    height: 120px;
-    background: #0f172a;
+    height: 100px;
+    background: var(--bg-dark);
     border-radius: 8px;
-    border: 1px solid #334155;
+    border: 1px solid var(--border);
     position: relative;
     overflow: hidden;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
   .chart-container canvas { width: 100%; height: 100%; }
   .file-input {
-    margin-top: 16px;
-    padding: 12px;
-    background: #0f172a;
+    margin-top: 12px;
+    padding: 10px;
+    background: var(--bg-dark);
     border-radius: 8px;
     border: 1px dashed #475569;
     text-align: center;
-    font-size: 12px;
-    color: #94a3b8;
+    font-size: 11px;
+    color: var(--muted);
   }
   .file-input input { display: none; }
-  .file-input label {
-    cursor: pointer;
-    display: block;
-    padding: 8px;
-  }
-  .file-input label:hover { color: #fbbf24; }
+  .file-input label { cursor: pointer; display: block; padding: 6px; }
+  .file-input label:active { color: var(--accent); }
   .state-bars {
     display: flex;
-    height: 8px;
-    border-radius: 4px;
+    height: 6px;
+    border-radius: 3px;
     overflow: hidden;
-    margin-top: 8px;
-    background: #334155;
+    margin-top: 6px;
+    background: var(--border);
   }
-  .state-bar {
-    height: 100%;
-    transition: width 0.3s ease;
-  }
+  .state-bar { height: 100%; transition: width 0.3s ease; }
   .tooltip {
     position: absolute;
     background: rgba(15, 23, 42, 0.95);
     border: 1px solid #475569;
-    padding: 8px 12px;
+    padding: 6px 10px;
     border-radius: 8px;
     font-size: 11px;
     pointer-events: none;
@@ -170,18 +185,71 @@
     display: none;
     white-space: nowrap;
   }
+  .menu-btn {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 50;
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 16px;
+  }
+
+  /* ===== PORTRAIT MOBILE ===== */
+  @media (max-width: 768px) and (orientation: portrait) {
+    header { padding: 8px 10px; }
+    h1 { font-size: 14px; }
+    .controls { gap: 4px; }
+    button, .btn { padding: 5px 8px; font-size: 12px; }
+    input[type="range"] { width: 60px; }
+    .main { flex-direction: column; }
+    .sidebar {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 260px;
+      z-index: 40;
+      transform: translateX(100%);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .menu-btn { display: block; }
+    .overlay {
+      top: 50px;
+      left: 8px;
+      padding: 8px;
+      font-size: 10px;
+      min-width: 130px;
+    }
+  }
+
+  /* ===== LANDSCAPE MOBILE ===== */
+  @media (max-width: 900px) and (orientation: landscape) {
+    header { padding: 6px 12px; }
+    h1 { font-size: 14px; }
+    .sidebar { width: 200px; padding: 10px; }
+    .chart-container { height: 80px; }
+    .overlay { padding: 8px; font-size: 10px; min-width: 130px; }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>🐝 <span>Bee</span> Swarm Simulator</h1>
+  <h1>🐝 <span>Bee</span> Swarm</h1>
   <div class="controls">
-    <button id="btn-reset" onclick="resetSim()">↺ Reset</button>
-    <button id="btn-play" class="primary" onclick="togglePlay()">▶ Play</button>
-    <label style="font-size:12px">Speed:</label>
+    <button id="btn-reset" onclick="resetSim()">↺</button>
+    <button id="btn-play" class="primary" onclick="togglePlay()">▶</button>
     <input type="range" id="speed" min="1" max="10" value="3">
-    <span id="speed-val" style="font-size:12px;min-width:24px">3x</span>
-    <button onclick="exportTrace()">💾 Export JSON</button>
+    <span id="speed-val" style="font-size:11px;min-width:20px">3x</span>
+    <div class="toggle-row">
+      <input type="checkbox" id="infinite" checked>
+      <label for="infinite" style="font-size:11px;cursor:pointer">∞</label>
+    </div>
+    <button onclick="exportTrace()">💾</button>
+    <button class="menu-btn" onclick="toggleSidebar()">☰</button>
   </div>
 </header>
 
@@ -191,39 +259,39 @@
     <div class="overlay">
       <h3>📊 Metrics</h3>
       <div class="stat-row"><span>Tick</span><span class="stat-value" id="m-tick">0</span></div>
-      <div class="stat-row"><span>Hive Nectar</span><span class="stat-value" id="m-nectar">0</span></div>
-      <div class="stat-row"><span>Efficiency</span><span class="stat-value" id="m-eff">0.00</span></div>
+      <div class="stat-row"><span>Hive</span><span class="stat-value" id="m-nectar">0</span></div>
+      <div class="stat-row"><span>Eff</span><span class="stat-value" id="m-eff">0.00</span></div>
       <div class="stat-row"><span>Trips</span><span class="stat-value" id="m-trips">0</span></div>
-      <div class="stat-row"><span>Discovered</span><span class="stat-value" id="m-disc">0/10</span></div>
-      <div style="margin-top:10px">
-        <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">Agent States</div>
+      <div class="stat-row"><span>Disc</span><span class="stat-value" id="m-disc">0/10</span></div>
+      <div style="margin-top:8px">
+        <div style="font-size:9px;color:var(--muted);margin-bottom:3px">States</div>
         <div class="state-bars" id="state-bars"></div>
       </div>
     </div>
     <div class="tooltip" id="tooltip"></div>
   </div>
 
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
     <h2>Legend</h2>
-    <div class="legend-item"><div class="dot" style="background:#fbbf24"></div>Worker (foraging)</div>
-    <div class="legend-item"><div class="dot" style="background:#f97316"></div>Scout (exploring)</div>
-    <div class="legend-item"><div class="dot" style="background:#22c55e"></div>Returning with nectar</div>
-    <div class="legend-item"><div class="dot" style="background:#a855f7"></div>Dancing (waggle)</div>
+    <div class="legend-item"><div class="dot" style="background:#fbbf24"></div>Worker</div>
+    <div class="legend-item"><div class="dot" style="background:#f97316"></div>Scout</div>
+    <div class="legend-item"><div class="dot" style="background:#22c55e"></div>Returning</div>
+    <div class="legend-item"><div class="dot" style="background:#a855f7"></div>Dancing</div>
     <div class="legend-item"><div class="dot" style="background:#64748b"></div>Resting</div>
-    <div class="legend-item"><div class="dot" style="background:#ec4899;box-shadow:0 0 6px #ec4899"></div>Flower patch</div>
+    <div class="legend-item"><div class="dot" style="background:#ec4899;box-shadow:0 0 6px #ec4899"></div>Patch</div>
     <div class="legend-item"><div class="dot" style="background:#fbbf24;box-shadow:0 0 8px #fbbf24;border:2px solid #fff"></div>Hive</div>
 
     <div class="timeline">
-      <h2>Nectar Over Time</h2>
+      <h2>Nectar</h2>
       <div class="chart-container"><canvas id="nectarChart"></canvas></div>
-      <h2>Energy Efficiency</h2>
+      <h2>Efficiency</h2>
       <div class="chart-container"><canvas id="effChart"></canvas></div>
     </div>
 
     <div class="file-input">
       <label for="file-upload">
-        📁 Load trace.json from C++ sim
-        <br><small>Or run built-in JS simulator</small>
+        📁 Load trace.json
+        <br><small>Or use built-in sim</small>
       </label>
       <input type="file" id="file-upload" accept=".json" onchange="loadTrace(event)">
     </div>
@@ -259,6 +327,8 @@ let speed = 3;
 let trace = [];
 let useTrace = false;
 let traceFrame = 0;
+let infiniteMode = true;
+let generation = 1;
 
 // ==================== CANVAS ====================
 const canvas = document.getElementById('simCanvas');
@@ -335,13 +405,36 @@ function initSim() {
   }
 
   danceScore = new Array(NUM_PATCHES).fill(0);
-  hiveNectar = 0;
-  energySpent = 0;
-  totalTrips = 0;
   tick = 0;
+  generation = 1;
   trace = [];
   useTrace = false;
   traceFrame = 0;
+}
+
+function regeneratePatches() {
+  generation++;
+  for (let i = 0; i < NUM_PATCHES; i++) {
+    const angle = (i / NUM_PATCHES) * Math.PI * 2 + Math.random() * 0.5 + generation;
+    const r = 30 + Math.random() * (PATCH_MAX_DIST - 30);
+    patches[i].x = Math.cos(angle) * r;
+    patches[i].y = Math.sin(angle) * r;
+    patches[i].nectar = 200 + Math.random() * 600;
+    patches[i].initialNectar = patches[i].nectar;
+    patches[i].discovered = false;
+  }
+  danceScore.fill(0);
+  // Reset bees to hive, keep cumulative stats
+  for (let bee of bees) {
+    bee.state = 'resting';
+    bee.x = HIVE.x; bee.y = HIVE.y;
+    bee.carrying = 0;
+    bee.targetPatch = -1;
+    bee.foundNewPatch = false;
+    bee.danceTimer = 0;
+    bee.energy = 100;
+  }
+  tick = 0;
 }
 
 // ==================== SIMULATION STEP ====================
@@ -351,6 +444,11 @@ function stepSim() {
     render();
     updateCharts();
     return;
+  }
+
+  // Infinite mode: regenerate patches when all depleted
+  if (infiniteMode && tick > 0 && tick % TICKS === 0) {
+    regeneratePatches();
   }
 
   for (let i = 0; i < NUM_PATCHES; i++) danceScore[i] *= 0.95;
@@ -470,7 +568,7 @@ function stepSim() {
 
   tick++;
 
-  if (tick % TRACE_INTERVAL === 0 || tick === TICKS - 1) {
+  if (tick % TRACE_INTERVAL === 0) {
     trace.push({
       tick, hiveNectar, energySpent, totalTrips,
       efficiency: hiveNectar / Math.max(1, energySpent),
@@ -488,22 +586,19 @@ function stepSim() {
         target: b.targetPatch
       }))
     });
+    if (trace.length > 200) trace.shift();
   }
 }
 
 // ==================== RENDER ====================
 function worldToScreen(wx, wy) {
-  return {
-    x: offsetX + wx * scale,
-    y: offsetY + wy * scale
-  };
+  return { x: offsetX + wx * scale, y: offsetY + wy * scale };
 }
 
 function render() {
   ctx.fillStyle = '#0b1120';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Grid
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 1;
   const gridSize = 50 * scale;
@@ -534,45 +629,37 @@ function render() {
     currentTrips = totalTrips;
   }
 
-  // Draw patches
   for (let p of currentPatches) {
     const pos = worldToScreen(p.x, p.y);
     const size = 3 + (p.nectar / p.initialNectar) * 12;
     const alpha = p.discovered ? 1 : 0.3;
-
     ctx.globalAlpha = alpha;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
     ctx.fillStyle = p.nectar > 0 ? '#ec4899' : '#475569';
     ctx.fill();
-
     if (p.discovered && p.nectar > 0) {
       ctx.strokeStyle = '#f472b6';
       ctx.lineWidth = 2;
       ctx.stroke();
     }
-
-    // Nectar bar
     if (p.discovered) {
       const barW = size * 2;
-      const barH = 3;
       ctx.fillStyle = '#334155';
-      ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW, barH);
+      ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW, 3);
       ctx.fillStyle = '#22c55e';
-      ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW * (p.nectar / p.initialNectar), barH);
+      ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW * (p.nectar / p.initialNectar), 3);
     }
     ctx.globalAlpha = 1;
   }
 
-  // Draw hive
   const hivePos = worldToScreen(HIVE.x, HIVE.y);
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
     const angle = (i / 6) * Math.PI * 2 - Math.PI / 6;
     const hx = hivePos.x + Math.cos(angle) * 12;
     const hy = hivePos.y + Math.sin(angle) * 12;
-    if (i === 0) ctx.moveTo(hx, hy);
-    else ctx.lineTo(hx, hy);
+    if (i === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
   }
   ctx.closePath();
   ctx.fillStyle = '#fbbf24';
@@ -581,7 +668,6 @@ function render() {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Hive nectar glow
   const glow = Math.min(20, currentHiveNectar / 50);
   if (glow > 0) {
     ctx.beginPath();
@@ -590,11 +676,9 @@ function render() {
     ctx.fill();
   }
 
-  // Draw bees
   for (let b of currentBees) {
     const pos = worldToScreen(b.x, b.y);
     let color, size = 2.5;
-
     switch (b.state) {
       case 'exploring': color = '#f97316'; size = 2.8; break;
       case 'foraging': color = '#fbbf24'; size = 3; break;
@@ -602,12 +686,10 @@ function render() {
       case 'dancing': color = '#a855f7'; size = 3.5; break;
       default: color = '#64748b'; size = 2;
     }
-
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
-
     if (b.state === 'dancing') {
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, size + 4 + Math.sin(Date.now() / 100) * 2, 0, Math.PI * 2);
@@ -615,7 +697,6 @@ function render() {
       ctx.lineWidth = 1;
       ctx.stroke();
     }
-
     if (b.carrying > 0) {
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, size + 1.5, 0, Math.PI * 2);
@@ -625,15 +706,13 @@ function render() {
     }
   }
 
-  // Update metrics
-  document.getElementById('m-tick').textContent = tick;
+  document.getElementById('m-tick').textContent = tick + (infiniteMode && !useTrace ? ' ∞' : '');
   document.getElementById('m-nectar').textContent = Math.floor(currentHiveNectar);
   document.getElementById('m-eff').textContent = (currentHiveNectar / Math.max(1, currentEnergySpent)).toFixed(3);
   document.getElementById('m-trips').textContent = currentTrips;
   const disc = currentPatches.filter(p => p.discovered).length;
   document.getElementById('m-disc').textContent = `${disc}/${NUM_PATCHES}`;
 
-  // State bars
   const states = {resting:0, exploring:0, foraging:0, returning:0, dancing:0};
   for (let b of currentBees) states[b.state] = (states[b.state] || 0) + 1;
   const total = currentBees.length;
@@ -664,32 +743,27 @@ function updateCharts() {
     effHistory.push(hiveNectar / Math.max(1, energySpent));
   }
   if (nectarHistory.length > 200) { nectarHistory.shift(); effHistory.shift(); }
-
-  drawChart(nChart, nectarHistory, '#fbbf24', 'Nectar');
-  drawChart(eChart, effHistory, '#22c55e', 'Efficiency');
+  drawChart(nChart, nectarHistory, '#fbbf24');
+  drawChart(eChart, effHistory, '#22c55e');
 }
 
-function drawChart(c, data, color, label) {
+function drawChart(c, data, color) {
   const w = c.canvas.width = c.canvas.clientWidth;
   const h = c.canvas.height = c.canvas.clientHeight;
   c.clearRect(0, 0, w, h);
   if (data.length < 2) return;
-
   const max = Math.max(...data, 0.001);
   const min = Math.min(...data, 0);
   const range = max - min || 1;
-
   c.beginPath();
   c.strokeStyle = color;
   c.lineWidth = 2;
   for (let i = 0; i < data.length; i++) {
     const x = (i / (data.length - 1)) * w;
     const y = h - ((data[i] - min) / range) * (h - 20) - 10;
-    if (i === 0) c.moveTo(x, y);
-    else c.lineTo(x, y);
+    if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
   }
   c.stroke();
-
   c.fillStyle = '#94a3b8';
   c.font = '10px sans-serif';
   c.fillText(max.toFixed(1), 4, 12);
@@ -699,12 +773,15 @@ function drawChart(c, data, color, label) {
 // ==================== CONTROLS ====================
 function togglePlay() {
   playing = !playing;
-  document.getElementById('btn-play').textContent = playing ? '⏸ Pause' : '▶ Play';
+  document.getElementById('btn-play').textContent = playing ? '⏸' : '▶';
 }
 
 function resetSim() {
   playing = false;
-  document.getElementById('btn-play').textContent = '▶ Play';
+  document.getElementById('btn-play').textContent = '▶';
+  hiveNectar = 0;
+  energySpent = 0;
+  totalTrips = 0;
   initSim();
   nectarHistory.length = 0;
   effHistory.length = 0;
@@ -729,18 +806,24 @@ function loadTrace(e) {
     useTrace = true;
     traceFrame = 0;
     playing = false;
-    document.getElementById('btn-play').textContent = '▶ Play';
+    document.getElementById('btn-play').textContent = '▶';
     nectarHistory.length = 0;
     effHistory.length = 0;
-    for (let f of trace) {
-      nectarHistory.push(f.hiveNectar);
-      effHistory.push(f.efficiency);
-    }
+    for (let f of trace) { nectarHistory.push(f.hiveNectar); effHistory.push(f.efficiency); }
     render();
     updateCharts();
   };
   reader.readAsText(file);
 }
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// Infinite toggle
+document.getElementById('infinite').addEventListener('change', (e) => {
+  infiniteMode = e.target.checked;
+});
 
 // Speed control
 document.getElementById('speed').addEventListener('input', (e) => {
@@ -748,73 +831,104 @@ document.getElementById('speed').addEventListener('input', (e) => {
   document.getElementById('speed-val').textContent = speed + 'x';
 });
 
-// Pan & zoom
+// ==================== MOUSE + TOUCH ====================
+function getPointerPos(e) {
+  if (e.touches && e.touches.length > 0) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const factor = e.deltaY > 0 ? 0.9 : 1.1;
   scale *= factor;
   scale = Math.max(0.5, Math.min(20, scale));
   render();
-});
+}, {passive: false});
 
-canvas.addEventListener('mousedown', (e) => {
+function onDown(e) {
   isDragging = true;
-  dragStart = {x: e.clientX - offsetX, y: e.clientY - offsetY};
-});
-window.addEventListener('mousemove', (e) => {
-  if (!isDragging) return;
-  offsetX = e.clientX - dragStart.x;
-  offsetY = e.clientY - dragStart.y;
-  render();
-});
-window.addEventListener('mouseup', () => isDragging = false);
-
-// Tooltip
-canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  const wx = (mx - offsetX) / scale;
-  const wy = (my - offsetY) / scale;
-
-  let currentBees, currentPatches;
-  if (useTrace) {
-    const frame = trace[traceFrame];
-    currentBees = frame.bees;
-    currentPatches = frame.patches;
-  } else {
-    currentBees = bees;
-    currentPatches = patches;
-  }
-
-  let found = null;
-  for (let b of currentBees) {
-    const sp = worldToScreen(b.x, b.y);
-    if (Math.hypot(sp.x - mx, sp.y - my) < 8) {
-      found = `Bee #${b.id} (${b.role})<br>State: ${b.state}<br>Energy: ${b.energy.toFixed(1)}<br>Carrying: ${b.carrying.toFixed(1)}`;
-      break;
+  const p = getPointerPos(e);
+  dragStart = {x: p.x - offsetX, y: p.y - offsetY};
+}
+function onMove(e) {
+  if (!isDragging) {
+    // Tooltip on hover
+    const rect = canvas.getBoundingClientRect();
+    const p = getPointerPos(e);
+    const mx = p.x - rect.left;
+    const my = p.y - rect.top;
+    const tip = document.getElementById('tooltip');
+    let currentBees, currentPatches;
+    if (useTrace) {
+      const frame = trace[traceFrame];
+      currentBees = frame.bees;
+      currentPatches = frame.patches;
+    } else {
+      currentBees = bees;
+      currentPatches = patches;
     }
-  }
-  if (!found) {
-    for (let p of currentPatches) {
-      const sp = worldToScreen(p.x, p.y);
-      if (Math.hypot(sp.x - mx, sp.y - my) < 15) {
-        found = `Patch #${p.id}<br>Nectar: ${p.nectar.toFixed(1)}<br>Discovered: ${p.discovered ? 'yes' : 'no'}`;
+    let found = null;
+    for (let b of currentBees) {
+      const sp = worldToScreen(b.x, b.y);
+      if (Math.hypot(sp.x - mx, sp.y - my) < 10) {
+        found = `Bee #${b.id} (${b.role})<br>${b.state}<br>⚡${b.energy.toFixed(1)} 🍯${b.carrying.toFixed(1)}`;
         break;
       }
     }
+    if (!found) {
+      for (let p of currentPatches) {
+        const sp = worldToScreen(p.x, p.y);
+        if (Math.hypot(sp.x - mx, sp.y - my) < 15) {
+          found = `Patch #${p.id}<br>🍯${p.nectar.toFixed(1)}<br>Found: ${p.discovered?'yes':'no'}`;
+          break;
+        }
+      }
+    }
+    if (found) {
+      tip.innerHTML = found;
+      tip.style.display = 'block';
+      tip.style.left = (p.x + 12) + 'px';
+      tip.style.top = (p.y + 12) + 'px';
+    } else {
+      tip.style.display = 'none';
+    }
+    return;
   }
+  const p = getPointerPos(e);
+  offsetX = p.x - dragStart.x;
+  offsetY = p.y - dragStart.y;
+  render();
+}
+function onUp() { isDragging = false; }
 
-  const tip = document.getElementById('tooltip');
-  if (found) {
-    tip.innerHTML = found;
-    tip.style.display = 'block';
-    tip.style.left = (e.clientX + 12) + 'px';
-    tip.style.top = (e.clientY + 12) + 'px';
-  } else {
-    tip.style.display = 'none';
+canvas.addEventListener('mousedown', onDown);
+window.addEventListener('mousemove', onMove);
+window.addEventListener('mouseup', onUp);
+
+canvas.addEventListener('touchstart', onDown, {passive: false});
+window.addEventListener('touchmove', onMove, {passive: false});
+window.addEventListener('touchend', onUp);
+
+// Pinch zoom
+let pinchDist = 0;
+canvas.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
   }
-});
+}, {passive: false});
+canvas.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    const newDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const factor = newDist / pinchDist;
+    scale *= factor;
+    scale = Math.max(0.5, Math.min(20, scale));
+    pinchDist = newDist;
+    render();
+  }
+}, {passive: false});
 
 // ==================== MAIN LOOP ====================
 let lastTime = 0;
@@ -826,12 +940,8 @@ function loop(timestamp) {
         if (traceFrame < trace.length - 1) traceFrame++;
         else playing = false;
       } else {
-        if (tick < TICKS) {
-          stepSim();
-          if (tick % 2 === 0) updateCharts();
-        } else {
-          playing = false;
-        }
+        stepSim();
+        if (tick % 2 === 0) updateCharts();
       }
       lastTime = timestamp;
     }
