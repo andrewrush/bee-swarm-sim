@@ -311,15 +311,16 @@ const NUM_BEES = 120;
 const NUM_SCOUTS = 15;
 const NUM_PATCHES = 10;
 const TRACE_INTERVAL = 5;
-const SPEED = 2.0;
-const SCOUT_SPEED = 4.0;
-const ENERGY_COST_MOVE = 0.15;
+const SPEED = 3.0;
+const SCOUT_SPEED = 5.0;
+const ENERGY_COST_MOVE = 0.12;
 const ENERGY_RECOVER = 2.0;
 const CARRY_CAPACITY = 10.0;
 const DETECT_RADIUS = 15.0;
-const PATCH_MIN_DIST = 100.0;
-const PATCH_MAX_DIST = 300.0;
-const HIVE_UPKEEP_PER_BEE = 0.08;
+const PATCH_MIN_DIST = 60.0;
+const PATCH_MAX_DIST = 150.0;
+const HIVE_UPKEEP_PER_BEE = 0.02;
+const STARVING_RECOVER_MULT = 0.5;
 const HIVE = {x: 0, y: 0};
 
 // ==================== STATE ====================
@@ -376,22 +377,50 @@ function randn(mean, std) {
 
 // ==================== GOAP ====================
 function evaluateGoal(bee, totalDanceScore, hiveStarving) {
-  if (bee.energy < 20) return {type:'survive', priority:100};
-  if (bee.carrying > 0) return {type:'deliver', priority:90};
-  if (bee.state === 'dancing') return {type:'rest', priority:10};
-  if (bee.role === 'scout') return {type:'explore', priority:50};
-  if (totalDanceScore > 0.1) return {type:'forage', priority:60};
+  // Critical: return home if very low energy and not already safe
+  if (bee.energy < 15 && bee.state !== 'resting') {
+    return {type:'survive', priority:100};
+  }
+  // Must deliver cargo
+  if (bee.carrying > 0) {
+    return {type:'deliver', priority:90};
+  }
+  // Finish dance
+  if (bee.state === 'dancing') {
+    return {type:'rest', priority:10};
+  }
+  // Resting in hive: recover energy
+  if (bee.state === 'resting') {
+    const threshold = hiveStarving ? 30 : 80;
+    if (bee.energy < threshold) {
+      return {type:'rest', priority:25};
+    }
+  }
+  // Ready to work
+  if (bee.role === 'scout') {
+    return {type:'explore', priority:50};
+  }
+  if (totalDanceScore > 0.1) {
+    return {type:'forage', priority:60};
+  }
+  // Nothing to do
   return {type:'rest', priority:20};
 }
 
 function executeGoal(bee, goal, patches, danceScore) {
   switch (goal.type) {
     case 'survive':
+      if (bee.state !== 'returning' && bee.state !== 'resting') {
+        bee.state = 'returning';
+      }
+      break;
     case 'deliver':
-      if (bee.state !== 'returning') bee.state = 'returning';
+      if (bee.state !== 'returning') {
+        bee.state = 'returning';
+      }
       break;
     case 'explore':
-      if (bee.state === 'resting' && bee.energy > 80) {
+      if (bee.state === 'resting') {
         bee.state = 'exploring';
         bee.x = HIVE.x; bee.y = HIVE.y;
         bee.foundNewPatch = false;
@@ -402,7 +431,7 @@ function executeGoal(bee, goal, patches, danceScore) {
       }
       break;
     case 'forage': {
-      if (bee.state === 'resting' && bee.energy > 80) {
+      if (bee.state === 'resting') {
         const totalScore = danceScore.reduce((a,b) => a+b, 0);
         if (totalScore > 0.1) {
           const r = Math.random() * totalScore;
@@ -421,6 +450,7 @@ function executeGoal(bee, goal, patches, danceScore) {
       break;
     }
     case 'rest':
+      // Stay in current state
       break;
   }
 }
@@ -463,7 +493,7 @@ function initSim() {
   }
 
   danceScore = new Array(NUM_PATCHES).fill(0);
-  hiveNectar = 200; // starting reserve
+  hiveNectar = 800; // starting reserve
   energySpent = 0;
   totalTrips = 0;
   tick = 0;
@@ -516,11 +546,8 @@ function stepSim() {
 
     switch (bee.state) {
       case 'resting': {
-        if (!hiveStarving) {
-          bee.energy = Math.min(100, bee.energy + ENERGY_RECOVER);
-        } else {
-          bee.energy = Math.min(100, bee.energy + ENERGY_RECOVER * 0.2);
-        }
+        const recoverRate = hiveStarving ? ENERGY_RECOVER * STARVING_RECOVER_MULT : ENERGY_RECOVER;
+        bee.energy = Math.min(100, bee.energy + recoverRate);
         break;
       }
 
@@ -676,7 +703,6 @@ function render() {
     currentStarving = hiveNectar <= 0;
   }
 
-  // Draw patches
   for (let p of currentPatches) {
     const pos = worldToScreen(p.x, p.y);
     const size = 3 + (p.nectar / p.initialNectar) * 12;
@@ -701,7 +727,6 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
-  // Draw hive
   const hivePos = worldToScreen(HIVE.x, HIVE.y);
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -725,7 +750,6 @@ function render() {
     ctx.fill();
   }
 
-  // Draw bees
   for (let b of currentBees) {
     const pos = worldToScreen(b.x, b.y);
     let color, size = 2.5;
@@ -756,7 +780,6 @@ function render() {
     }
   }
 
-  // Metrics
   document.getElementById('m-tick').textContent = tick;
   const nectarEl = document.getElementById('m-nectar');
   nectarEl.textContent = Math.floor(currentHiveNectar);
