@@ -49,6 +49,11 @@ clang++ -std=c++17 -O2 main.cpp -o bee_sim
 ## 📱 Mobile & Infinite Mode
 
 - Responsive layout for portrait and landscape orientations
+- Touch gestures: pan (1 finger), zoom (pinch), tap (tooltip)
+- Infinite simulation: each flower patch regenerates individually when fully depleted (like a snake apple)
+- Sidebar collapses to drawer on mobile portrait
+
+- Responsive layout for portrait and landscape orientations
 - Touch gestures: pan (1 finger), zoom (pinch), hover (tooltip)
 - Infinite simulation mode: new flower patches regenerate automatically when depleted
 - Sidebar collapses to drawer on mobile portrait

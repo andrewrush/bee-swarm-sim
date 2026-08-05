@@ -5,7 +5,6 @@
 #include <cmath>
 #include <algorithm>
 #include <iomanip>
-#include <sstream>
 
 using namespace std;
 
@@ -65,10 +64,21 @@ struct Bee {
     bool foundNewPatch = false;
     int tripsCompleted = 0;
     double totalNectarDelivered = 0.0;
-    // Scout direction
     double scoutDirX = 0.0;
     double scoutDirY = 0.0;
 };
+
+mt19937 rng(42);
+
+void regeneratePatch(FlowerPatch &patch, double minDist, double maxDist) {
+    double angle = uniform_real_distribution<double>(0.0, 2.0 * M_PI)(rng);
+    double dist = minDist + uniform_real_distribution<double>(0.0, maxDist - minDist)(rng);
+    patch.pos = {cos(angle) * dist, sin(angle) * dist};
+    uniform_real_distribution<double> nectarDist(200.0, 800.0);
+    patch.nectar = nectarDist(rng);
+    patch.initialNectar = patch.nectar;
+    patch.discovered = false;
+}
 
 int main() {
     const int NUM_BEES = 120;
@@ -83,23 +93,17 @@ int main() {
     const double ENERGY_RECOVER = 2.0;
     const double CARRY_CAPACITY = 10.0;
     const double DETECT_RADIUS = 12.0;
+    const double PATCH_MIN_DIST = 30.0;
     const double PATCH_MAX_DIST = 80.0;
 
     const Vec2 hive{0.0, 0.0};
-
-    mt19937 rng(42);
     uniform_real_distribution<double> nectarDist(200.0, 800.0);
 
     vector<FlowerPatch> patches;
     for (int i = 0; i < NUM_PATCHES; ++i) {
         FlowerPatch patch;
         patch.id = i;
-        // Place patches at random angles, distance 30-80 from hive
-        double angle = uniform_real_distribution<double>(0.0, 2.0 * M_PI)(rng);
-        double dist = 30.0 + uniform_real_distribution<double>(0.0, PATCH_MAX_DIST - 30.0)(rng);
-        patch.pos = {cos(angle) * dist, sin(angle) * dist};
-        patch.nectar = nectarDist(rng);
-        patch.initialNectar = patch.nectar;
+        regeneratePatch(patch, PATCH_MIN_DIST, PATCH_MAX_DIST);
         patches.push_back(patch);
     }
 
@@ -125,6 +129,13 @@ int main() {
         // Dance decay
         for (double &score : danceScore) score *= 0.95;
 
+        // Regenerate depleted patches individually (like snake apple)
+        for (FlowerPatch &patch : patches) {
+            if (patch.nectar <= 0.0) {
+                regeneratePatch(patch, PATCH_MIN_DIST, PATCH_MAX_DIST);
+            }
+        }
+
         for (Bee &bee : bees) {
             double energyBefore = bee.energy;
 
@@ -137,7 +148,6 @@ int main() {
                             bee.pos = hive;
                             bee.foundNewPatch = false;
                             bee.targetPatch = -1;
-                            // Pick random direction for scout
                             double angle = uniform_real_distribution<double>(0.0, 2.0 * M_PI)(rng);
                             bee.scoutDirX = cos(angle);
                             bee.scoutDirY = sin(angle);
@@ -165,7 +175,6 @@ int main() {
                 }
 
                 case State::Exploring: {
-                    // Fly in chosen direction with scout speed + small noise
                     normal_distribution<double> noise(0.0, 0.3);
                     bee.pos.x += (bee.scoutDirX + noise(rng)) * SCOUT_SPEED;
                     bee.pos.y += (bee.scoutDirY + noise(rng)) * SCOUT_SPEED;
@@ -199,7 +208,7 @@ int main() {
 
                     if (distance(bee.pos, patches[bee.targetPatch].pos) < 2.0) {
                         double take = min(CARRY_CAPACITY - bee.carrying, patches[bee.targetPatch].nectar);
-                        take = min(take, 2.0); // collect 2 per tick
+                        take = min(take, 2.0);
                         patches[bee.targetPatch].nectar -= take;
                         bee.carrying += take;
 
