@@ -16,6 +16,7 @@
     --muted: #94a3b8;
     --accent: #fbbf24;
     --accent-btn: #f59e0b;
+    --danger: #ef4444;
   }
   body {
     background: var(--bg);
@@ -63,6 +64,7 @@
   button:hover { background: #475569; }
   button.primary { background: var(--accent-btn); color: var(--bg); font-weight: 600; }
   button.primary:hover { background: var(--accent); }
+  button.danger { background: var(--danger); color: #fff; }
   input[type="range"] {
     width: 80px;
     accent-color: var(--accent-btn);
@@ -103,6 +105,7 @@
   }
   .stat-row { display: flex; justify-content: space-between; gap: 12px; }
   .stat-value { color: var(--accent); font-weight: 600; font-family: monospace; }
+  .stat-value.danger { color: var(--danger); }
   .sidebar {
     width: 260px;
     background: var(--panel);
@@ -191,6 +194,21 @@
     border-radius: 8px;
     font-size: 16px;
   }
+  .starving-banner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    display: none;
+    z-index: 60;
+    pointer-events: none;
+  }
 
   @media (max-width: 768px) and (orientation: portrait) {
     header { padding: 8px 10px; }
@@ -244,6 +262,7 @@
 <div class="main">
   <div id="canvas-container">
     <canvas id="simCanvas"></canvas>
+    <div class="starving-banner" id="starving-banner">⚠️ HIVE STARVING</div>
     <div class="overlay">
       <h3>📊 Metrics</h3>
       <div class="stat-row"><span>Tick</span><span class="stat-value" id="m-tick">0</span></div>
@@ -292,14 +311,15 @@ const NUM_BEES = 120;
 const NUM_SCOUTS = 15;
 const NUM_PATCHES = 10;
 const TRACE_INTERVAL = 5;
-const SPEED = 1.0;
-const SCOUT_SPEED = 2.5;
+const SPEED = 2.0;
+const SCOUT_SPEED = 4.0;
 const ENERGY_COST_MOVE = 0.15;
 const ENERGY_RECOVER = 2.0;
 const CARRY_CAPACITY = 10.0;
-const DETECT_RADIUS = 12.0;
-const PATCH_MIN_DIST = 30.0;
-const PATCH_MAX_DIST = 80.0;
+const DETECT_RADIUS = 15.0;
+const PATCH_MIN_DIST = 100.0;
+const PATCH_MAX_DIST = 300.0;
+const HIVE_UPKEEP_PER_BEE = 0.08;
 const HIVE = {x: 0, y: 0};
 
 // ==================== STATE ====================
@@ -323,7 +343,7 @@ const nChart = document.getElementById('nectarChart').getContext('2d');
 const eChart = document.getElementById('effChart').getContext('2d');
 const container = document.getElementById('canvas-container');
 
-let scale = 3.5;
+let scale = 1.8;
 let offsetX = 0, offsetY = 0;
 let isDragging = false;
 let dragStart = {x: 0, y: 0};
@@ -354,13 +374,64 @@ function randn(mean, std) {
   return mean + std * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+// ==================== GOAP ====================
+function evaluateGoal(bee, totalDanceScore, hiveStarving) {
+  if (bee.energy < 20) return {type:'survive', priority:100};
+  if (bee.carrying > 0) return {type:'deliver', priority:90};
+  if (bee.state === 'dancing') return {type:'rest', priority:10};
+  if (bee.role === 'scout') return {type:'explore', priority:50};
+  if (totalDanceScore > 0.1) return {type:'forage', priority:60};
+  return {type:'rest', priority:20};
+}
+
+function executeGoal(bee, goal, patches, danceScore) {
+  switch (goal.type) {
+    case 'survive':
+    case 'deliver':
+      if (bee.state !== 'returning') bee.state = 'returning';
+      break;
+    case 'explore':
+      if (bee.state === 'resting' && bee.energy > 80) {
+        bee.state = 'exploring';
+        bee.x = HIVE.x; bee.y = HIVE.y;
+        bee.foundNewPatch = false;
+        bee.targetPatch = -1;
+        const angle = Math.random() * Math.PI * 2;
+        bee.scoutDirX = Math.cos(angle);
+        bee.scoutDirY = Math.sin(angle);
+      }
+      break;
+    case 'forage': {
+      if (bee.state === 'resting' && bee.energy > 80) {
+        const totalScore = danceScore.reduce((a,b) => a+b, 0);
+        if (totalScore > 0.1) {
+          const r = Math.random() * totalScore;
+          let acc = 0, chosen = -1;
+          for (let i = 0; i < NUM_PATCHES; i++) {
+            acc += danceScore[i];
+            if (r <= acc) { chosen = i; break; }
+          }
+          if (chosen >= 0 && patches[chosen].nectar > 0) {
+            bee.targetPatch = chosen;
+            bee.state = 'foraging';
+            bee.x = HIVE.x; bee.y = HIVE.y;
+          }
+        }
+      }
+      break;
+    }
+    case 'rest':
+      break;
+  }
+}
+
 // ==================== INIT ====================
 function regeneratePatch(patch) {
   const angle = Math.random() * Math.PI * 2;
   const r = PATCH_MIN_DIST + Math.random() * (PATCH_MAX_DIST - PATCH_MIN_DIST);
   patch.x = Math.cos(angle) * r;
   patch.y = Math.sin(angle) * r;
-  patch.nectar = 200 + Math.random() * 600;
+  patch.nectar = 300 + Math.random() * 700;
   patch.initialNectar = patch.nectar;
   patch.discovered = false;
 }
@@ -392,6 +463,9 @@ function initSim() {
   }
 
   danceScore = new Array(NUM_PATCHES).fill(0);
+  hiveNectar = 200; // starting reserve
+  energySpent = 0;
+  totalTrips = 0;
   tick = 0;
   trace = [];
   useTrace = false;
@@ -410,48 +484,47 @@ function stepSim() {
   // Dance decay
   for (let i = 0; i < NUM_PATCHES; i++) danceScore[i] *= 0.95;
 
-  // Regenerate depleted patches individually (like snake apple)
+  // Hive upkeep
+  const upkeep = Math.min(hiveNectar, NUM_BEES * HIVE_UPKEEP_PER_BEE);
+  hiveNectar -= upkeep;
+  const hiveStarving = hiveNectar <= 0;
+
+  // Regenerate depleted patches individually (snake-apple)
   for (let patch of patches) {
     if (patch.nectar <= 0) {
+      // Bees heading here get confused and forget
+      for (let bee of bees) {
+        if (bee.targetPatch === patch.id) {
+          bee.targetPatch = -1;
+          bee.state = 'returning';
+          bee.foundNewPatch = false;
+        }
+      }
+      danceScore[patch.id] = 0;
       regeneratePatch(patch);
     }
   }
 
+  const totalDanceScore = danceScore.reduce((a,b) => a+b, 0);
+
   for (let bee of bees) {
     const energyBefore = bee.energy;
 
+    // GOAP
+    const goal = evaluateGoal(bee, totalDanceScore, hiveStarving);
+    executeGoal(bee, goal, patches, danceScore);
+
     switch (bee.state) {
-      case 'resting':
-        bee.energy = Math.min(100, bee.energy + ENERGY_RECOVER);
-        if (bee.energy > 80) {
-          if (bee.role === 'scout') {
-            bee.state = 'exploring';
-            bee.x = HIVE.x; bee.y = HIVE.y;
-            bee.foundNewPatch = false;
-            bee.targetPatch = -1;
-            const angle = Math.random() * Math.PI * 2;
-            bee.scoutDirX = Math.cos(angle);
-            bee.scoutDirY = Math.sin(angle);
-          } else {
-            const totalScore = danceScore.reduce((a,b) => a+b, 0);
-            if (totalScore > 0.1) {
-              const r = Math.random() * totalScore;
-              let acc = 0, chosen = -1;
-              for (let i = 0; i < NUM_PATCHES; i++) {
-                acc += danceScore[i];
-                if (r <= acc) { chosen = i; break; }
-              }
-              if (chosen >= 0 && patches[chosen].nectar > 0) {
-                bee.targetPatch = chosen;
-                bee.state = 'foraging';
-                bee.x = HIVE.x; bee.y = HIVE.y;
-              }
-            }
-          }
+      case 'resting': {
+        if (!hiveStarving) {
+          bee.energy = Math.min(100, bee.energy + ENERGY_RECOVER);
+        } else {
+          bee.energy = Math.min(100, bee.energy + ENERGY_RECOVER * 0.2);
         }
         break;
+      }
 
-      case 'exploring':
+      case 'exploring': {
         bee.x += (bee.scoutDirX + randn(0, 0.3)) * SCOUT_SPEED;
         bee.y += (bee.scoutDirY + randn(0, 0.3)) * SCOUT_SPEED;
         bee.energy -= ENERGY_COST_MOVE * (SCOUT_SPEED / SPEED);
@@ -470,27 +543,31 @@ function stepSim() {
           bee.targetPatch = -1;
         }
         break;
+      }
 
-      case 'foraging':
-        if (bee.targetPatch < 0 || patches[bee.targetPatch].nectar <= 0) {
+      case 'foraging': {
+        // Confused return if patch gone/empty
+        if (bee.targetPatch < 0 || bee.targetPatch >= NUM_PATCHES || patches[bee.targetPatch].nectar <= 0) {
+          bee.targetPatch = -1;
           bee.state = 'returning';
-        } else {
-          const patch = patches[bee.targetPatch];
-          Object.assign(bee, moveTowards(bee, patch, SPEED));
-          bee.energy -= ENERGY_COST_MOVE;
-          if (dist(bee, patch) < 2.0) {
-            const take = Math.min(CARRY_CAPACITY - bee.carrying, patch.nectar, 2.0);
-            patch.nectar -= take;
-            bee.carrying += take;
-            if (bee.carrying >= CARRY_CAPACITY || patch.nectar <= 0 || bee.energy < 25) {
-              bee.state = 'returning';
-            }
-          }
-          if (bee.energy < 10) bee.state = 'returning';
+          break;
         }
+        const patch = patches[bee.targetPatch];
+        Object.assign(bee, moveTowards(bee, patch, SPEED));
+        bee.energy -= ENERGY_COST_MOVE;
+        if (dist(bee, patch) < 2.0) {
+          const take = Math.min(CARRY_CAPACITY - bee.carrying, patch.nectar, 2.0);
+          patch.nectar -= take;
+          bee.carrying += take;
+          if (bee.carrying >= CARRY_CAPACITY || patch.nectar <= 0 || bee.energy < 25) {
+            bee.state = 'returning';
+          }
+        }
+        if (bee.energy < 10) bee.state = 'returning';
         break;
+      }
 
-      case 'returning':
+      case 'returning': {
         Object.assign(bee, moveTowards(bee, HIVE, SPEED));
         bee.energy -= ENERGY_COST_MOVE;
         if (dist(bee, HIVE) < 2.0) {
@@ -507,18 +584,22 @@ function stepSim() {
           }
         }
         break;
+      }
 
-      case 'dancing':
-        if (bee.targetPatch >= 0) {
+      case 'dancing': {
+        if (bee.targetPatch >= 0 && bee.targetPatch < NUM_PATCHES) {
           const patch = patches[bee.targetPatch];
-          const d = Math.max(1, dist(HIVE, patch));
-          const score = patch.nectar / (d + 1);
-          danceScore[bee.targetPatch] += score;
+          if (patch.nectar > 0) {
+            const d = Math.max(1, dist(HIVE, patch));
+            const score = patch.nectar / (d + 1);
+            danceScore[bee.targetPatch] += score;
+          }
         }
         bee.danceTimer -= 1;
         bee.energy -= 0.05;
         if (bee.danceTimer <= 0) bee.state = 'resting';
         break;
+      }
     }
 
     const spent = energyBefore - bee.energy;
@@ -575,7 +656,7 @@ function render() {
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
   }
 
-  let currentPatches, currentBees, currentHiveNectar, currentEnergySpent, currentTrips;
+  let currentPatches, currentBees, currentHiveNectar, currentEnergySpent, currentTrips, currentStarving;
 
   if (useTrace) {
     const frame = trace[traceFrame] || trace[trace.length - 1];
@@ -585,18 +666,21 @@ function render() {
     currentEnergySpent = frame.energySpent;
     currentTrips = frame.totalTrips;
     tick = frame.tick;
+    currentStarving = false;
   } else {
     currentPatches = patches;
     currentBees = bees;
     currentHiveNectar = hiveNectar;
     currentEnergySpent = energySpent;
     currentTrips = totalTrips;
+    currentStarving = hiveNectar <= 0;
   }
 
+  // Draw patches
   for (let p of currentPatches) {
     const pos = worldToScreen(p.x, p.y);
     const size = 3 + (p.nectar / p.initialNectar) * 12;
-    const alpha = p.discovered ? 1 : 0.3;
+    const alpha = p.discovered ? 1 : 0.25;
     ctx.globalAlpha = alpha;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
@@ -617,6 +701,7 @@ function render() {
     ctx.globalAlpha = 1;
   }
 
+  // Draw hive
   const hivePos = worldToScreen(HIVE.x, HIVE.y);
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -626,9 +711,9 @@ function render() {
     if (i === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
   }
   ctx.closePath();
-  ctx.fillStyle = '#fbbf24';
+  ctx.fillStyle = currentStarving ? '#ef4444' : '#fbbf24';
   ctx.fill();
-  ctx.strokeStyle = '#f59e0b';
+  ctx.strokeStyle = currentStarving ? '#dc2626' : '#f59e0b';
   ctx.lineWidth = 2;
   ctx.stroke();
 
@@ -640,6 +725,7 @@ function render() {
     ctx.fill();
   }
 
+  // Draw bees
   for (let b of currentBees) {
     const pos = worldToScreen(b.x, b.y);
     let color, size = 2.5;
@@ -670,12 +756,17 @@ function render() {
     }
   }
 
+  // Metrics
   document.getElementById('m-tick').textContent = tick;
-  document.getElementById('m-nectar').textContent = Math.floor(currentHiveNectar);
+  const nectarEl = document.getElementById('m-nectar');
+  nectarEl.textContent = Math.floor(currentHiveNectar);
+  nectarEl.className = 'stat-value' + (currentStarving ? ' danger' : '');
   document.getElementById('m-eff').textContent = (currentHiveNectar / Math.max(1, currentEnergySpent)).toFixed(3);
   document.getElementById('m-trips').textContent = currentTrips;
   const disc = currentPatches.filter(p => p.discovered).length;
   document.getElementById('m-disc').textContent = `${disc}/${NUM_PATCHES}`;
+
+  document.getElementById('starving-banner').style.display = currentStarving ? 'block' : 'none';
 
   const states = {resting:0, exploring:0, foraging:0, returning:0, dancing:0};
   for (let b of currentBees) states[b.state] = (states[b.state] || 0) + 1;
@@ -802,7 +893,7 @@ canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const factor = e.deltaY > 0 ? 0.9 : 1.1;
   scale *= factor;
-  scale = Math.max(0.5, Math.min(20, scale));
+  scale = Math.max(0.3, Math.min(20, scale));
   render();
 }, {passive: false});
 
@@ -882,7 +973,7 @@ canvas.addEventListener('touchmove', (e) => {
     const newDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
     const factor = newDist / pinchDist;
     scale *= factor;
-    scale = Math.max(0.5, Math.min(20, scale));
+    scale = Math.max(0.3, Math.min(20, scale));
     pinchDist = newDist;
     render();
   }

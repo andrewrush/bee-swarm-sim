@@ -50,6 +50,16 @@ clang++ -std=c++17 -O2 main.cpp -o bee_sim
 
 - Responsive layout for portrait and landscape orientations
 - Touch gestures: pan (1 finger), zoom (pinch), tap (tooltip)
+- Infinite simulation: each flower patch regenerates individually when fully depleted
+- GOAP-inspired action selection for bees (Goal-Oriented Action Planning)
+- Hive upkeep: nectar is consumed by the colony every tick
+- Starving mode: bees recover energy slowly when hive nectar is depleted
+- Bees get confused and forget depleted patches, returning empty-handed
+- Far patches: 100–300 units from hive
+- Sidebar collapses to drawer on mobile portrait
+
+- Responsive layout for portrait and landscape orientations
+- Touch gestures: pan (1 finger), zoom (pinch), tap (tooltip)
 - Infinite simulation: each flower patch regenerates individually when fully depleted (like a snake apple)
 - Sidebar collapses to drawer on mobile portrait
 

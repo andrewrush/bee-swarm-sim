@@ -44,6 +44,16 @@ string stateToString(State s) {
     return "unknown";
 }
 
+// ===== GOAP =====
+enum class GoalType { Survive, Deliver, Explore, Forage, Rest };
+
+struct Goal {
+    GoalType type;
+    int priority;
+};
+
+Goal evaluateGoal(const Bee& bee, double totalDanceScore, bool hiveStarving);
+
 struct FlowerPatch {
     int id;
     Vec2 pos;
@@ -74,30 +84,92 @@ void regeneratePatch(FlowerPatch &patch, double minDist, double maxDist) {
     double angle = uniform_real_distribution<double>(0.0, 2.0 * M_PI)(rng);
     double dist = minDist + uniform_real_distribution<double>(0.0, maxDist - minDist)(rng);
     patch.pos = {cos(angle) * dist, sin(angle) * dist};
-    uniform_real_distribution<double> nectarDist(200.0, 800.0);
+    uniform_real_distribution<double> nectarDist(300.0, 1000.0);
     patch.nectar = nectarDist(rng);
     patch.initialNectar = patch.nectar;
     patch.discovered = false;
+}
+
+Goal evaluateGoal(const Bee& bee, double totalDanceScore, bool hiveStarving) {
+    if (bee.energy < 20) return {GoalType::Survive, 100};
+    if (bee.carrying > 0) return {GoalType::Deliver, 90};
+    if (bee.state == State::Dancing) return {GoalType::Rest, 10};
+    if (bee.role == Role::Scout) {
+        return {GoalType::Explore, 50};
+    }
+    if (totalDanceScore > 0.1) {
+        return {GoalType::Forage, 60};
+    }
+    return {GoalType::Rest, 20};
+}
+
+void executeGoal(Bee &bee, Goal goal, const Vec2& hive, 
+                 vector<FlowerPatch>& patches, vector<double>& danceScore,
+                 mt19937& rng) {
+    switch (goal.type) {
+        case GoalType::Survive:
+        case GoalType::Deliver:
+            if (bee.state != State::Returning) {
+                bee.state = State::Returning;
+            }
+            break;
+        case GoalType::Explore:
+            if (bee.state == State::Resting && bee.energy > 80) {
+                bee.state = State::Exploring;
+                bee.pos = hive;
+                bee.foundNewPatch = false;
+                bee.targetPatch = -1;
+                double angle = uniform_real_distribution<double>(0.0, 2.0 * M_PI)(rng);
+                bee.scoutDirX = cos(angle);
+                bee.scoutDirY = sin(angle);
+            }
+            break;
+        case GoalType::Forage: {
+            if (bee.state == State::Resting && bee.energy > 80) {
+                double totalScore = 0;
+                for (double s : danceScore) totalScore += s;
+                if (totalScore > 0.1) {
+                    uniform_real_distribution<double> pick(0.0, totalScore);
+                    double r = pick(rng);
+                    double acc = 0.0;
+                    int chosen = -1;
+                    for (int i = 0; i < (int)patches.size(); ++i) {
+                        acc += danceScore[i];
+                        if (r <= acc) { chosen = i; break; }
+                    }
+                    if (chosen >= 0 && patches[chosen].nectar > 0.0) {
+                        bee.targetPatch = chosen;
+                        bee.state = State::Foraging;
+                        bee.pos = hive;
+                    }
+                }
+            }
+            break;
+        }
+        case GoalType::Rest:
+            // Stay resting
+            break;
+    }
 }
 
 int main() {
     const int NUM_BEES = 120;
     const int NUM_SCOUTS = 15;
     const int NUM_PATCHES = 10;
-    const int TICKS = 300;
+    const int TICKS = 500;
     const int TRACE_INTERVAL = 5;
 
-    const double SPEED = 1.0;
-    const double SCOUT_SPEED = 2.5;
+    const double SPEED = 2.0;
+    const double SCOUT_SPEED = 4.0;
     const double ENERGY_COST_MOVE = 0.15;
     const double ENERGY_RECOVER = 2.0;
     const double CARRY_CAPACITY = 10.0;
-    const double DETECT_RADIUS = 12.0;
-    const double PATCH_MIN_DIST = 30.0;
-    const double PATCH_MAX_DIST = 80.0;
+    const double DETECT_RADIUS = 15.0;
+    const double PATCH_MIN_DIST = 100.0;
+    const double PATCH_MAX_DIST = 300.0;
+    const double HIVE_UPKEEP_PER_BEE = 0.08;
 
     const Vec2 hive{0.0, 0.0};
-    uniform_real_distribution<double> nectarDist(200.0, 800.0);
 
     vector<FlowerPatch> patches;
     for (int i = 0; i < NUM_PATCHES; ++i) {
@@ -129,47 +201,45 @@ int main() {
         // Dance decay
         for (double &score : danceScore) score *= 0.95;
 
-        // Regenerate depleted patches individually (like snake apple)
+        // Hive upkeep - nectar consumed by colony
+        double upkeep = min(hiveNectar, (double)NUM_BEES * HIVE_UPKEEP_PER_BEE);
+        hiveNectar -= upkeep;
+        bool hiveStarving = hiveNectar <= 0;
+
+        // Regenerate depleted patches individually (snake-apple style)
         for (FlowerPatch &patch : patches) {
             if (patch.nectar <= 0.0) {
+                // Bees that were heading here get confused and forget
+                for (Bee &bee : bees) {
+                    if (bee.targetPatch == patch.id) {
+                        bee.targetPatch = -1;
+                        bee.state = State::Returning;
+                        bee.foundNewPatch = false;
+                    }
+                }
+                danceScore[patch.id] = 0.0;
                 regeneratePatch(patch, PATCH_MIN_DIST, PATCH_MAX_DIST);
             }
         }
 
+        // Evaluate total dance score for GOAP
+        double totalDanceScore = 0.0;
+        for (double s : danceScore) totalDanceScore += s;
+
         for (Bee &bee : bees) {
             double energyBefore = bee.energy;
 
+            // GOAP: evaluate goal and act
+            Goal goal = evaluateGoal(bee, totalDanceScore, hiveStarving);
+            executeGoal(bee, goal, hive, patches, danceScore, rng);
+
             switch (bee.state) {
                 case State::Resting: {
-                    bee.energy = min(100.0, bee.energy + ENERGY_RECOVER);
-                    if (bee.energy > 80.0) {
-                        if (bee.role == Role::Scout) {
-                            bee.state = State::Exploring;
-                            bee.pos = hive;
-                            bee.foundNewPatch = false;
-                            bee.targetPatch = -1;
-                            double angle = uniform_real_distribution<double>(0.0, 2.0 * M_PI)(rng);
-                            bee.scoutDirX = cos(angle);
-                            bee.scoutDirY = sin(angle);
-                        } else {
-                            double totalScore = 0.0;
-                            for (double score : danceScore) totalScore += score;
-                            if (totalScore > 0.1) {
-                                uniform_real_distribution<double> pick(0.0, totalScore);
-                                double r = pick(rng);
-                                double acc = 0.0;
-                                int chosen = -1;
-                                for (int i = 0; i < NUM_PATCHES; ++i) {
-                                    acc += danceScore[i];
-                                    if (r <= acc) { chosen = i; break; }
-                                }
-                                if (chosen >= 0 && patches[chosen].nectar > 0.0) {
-                                    bee.targetPatch = chosen;
-                                    bee.state = State::Foraging;
-                                    bee.pos = hive;
-                                }
-                            }
-                        }
+                    if (!hiveStarving) {
+                        bee.energy = min(100.0, bee.energy + ENERGY_RECOVER);
+                    } else {
+                        // Starving: recover very slowly
+                        bee.energy = min(100.0, bee.energy + ENERGY_RECOVER * 0.2);
                     }
                     break;
                 }
@@ -190,7 +260,7 @@ int main() {
                         }
                     }
 
-                    if (bee.energy < 20.0) {
+                    if (bee.energy < 20.0 && bee.state == State::Exploring) {
                         bee.state = State::Returning;
                         bee.foundNewPatch = false;
                         bee.targetPatch = -1;
@@ -199,7 +269,11 @@ int main() {
                 }
 
                 case State::Foraging: {
-                    if (bee.targetPatch < 0 || patches[bee.targetPatch].nectar <= 0.0) {
+                    // Confused return if patch gone/empty
+                    if (bee.targetPatch < 0 || 
+                        bee.targetPatch >= (int)patches.size() ||
+                        patches[bee.targetPatch].nectar <= 0.0) {
+                        bee.targetPatch = -1;
                         bee.state = State::Returning;
                         break;
                     }
@@ -212,7 +286,9 @@ int main() {
                         patches[bee.targetPatch].nectar -= take;
                         bee.carrying += take;
 
-                        if (bee.carrying >= CARRY_CAPACITY || patches[bee.targetPatch].nectar <= 0.0 || bee.energy < 25.0) {
+                        if (bee.carrying >= CARRY_CAPACITY || 
+                            patches[bee.targetPatch].nectar <= 0.0 || 
+                            bee.energy < 25.0) {
                             bee.state = State::Returning;
                         }
                     }
@@ -242,11 +318,13 @@ int main() {
                 }
 
                 case State::Dancing: {
-                    if (bee.targetPatch >= 0) {
+                    if (bee.targetPatch >= 0 && bee.targetPatch < (int)patches.size()) {
                         FlowerPatch &patch = patches[bee.targetPatch];
-                        double d = max(1.0, distance(hive, patch.pos));
-                        double score = patch.nectar / (d + 1.0);
-                        danceScore[bee.targetPatch] += score;
+                        if (patch.nectar > 0) {
+                            double d = max(1.0, distance(hive, patch.pos));
+                            double score = patch.nectar / (d + 1.0);
+                            danceScore[bee.targetPatch] += score;
+                        }
                     }
                     bee.danceTimer -= 1.0;
                     bee.energy -= 0.05;
