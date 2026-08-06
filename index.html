@@ -85,7 +85,7 @@
     z-index: 100; display: none; white-space: nowrap;
   }
   .menu-btn {
-    display: none; position: absolute; top: 10px; right: 10px; z-index: 50;
+    display: none; position: absolute; z-index: 50;
     background: rgba(30, 41, 59, 0.9); border: 1px solid var(--border);
     padding: 8px 10px; border-radius: 8px; font-size: 16px;
   }
@@ -138,13 +138,13 @@
     <input type="range" id="speed" min="1" max="10" value="3">
     <span id="speed-val" style="font-size:11px;min-width:20px">3x</span>
     <button onclick="exportTrace()">💾</button>
-    <button class="menu-btn" onclick="toggleSidebar()">☰</button>
   </div>
 </header>
 
 <div class="main">
   <div id="canvas-container">
     <canvas id="simCanvas"></canvas>
+    <button class="menu-btn" onclick="toggleSidebar()">☰</button>
     <div class="fps-counter" id="fps-counter">FPS: --</div>
     <div class="wasm-status" id="wasm-status">Loading engine...</div>
     <div class="starving-banner" id="starving-banner">⚠️ HIVE STARVING</div>
