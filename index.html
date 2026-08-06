@@ -228,39 +228,58 @@ function tryLoadWasm() {
 
 tryLoadWasm().then(() => {
     setWasmStatus('WASM engine active', true);
+    console.log('[WASM] Engine ready, initializing...');
+    unifiedInit();
+    render();
 }).catch(err => {
-    console.log('WASM fallback:', err);
+    console.log('[WASM] Fallback to JS:', err);
     setWasmStatus('JS fallback', false);
     wasmLoading = false;
+    unifiedInit();
+    render();
 });
 
 function syncFromWasm() {
     if (!wasmReady) return false;
-    const ptr = Module.ccall('sim_get_state_json', 'number', [], []);
-    const str = Module.UTF8ToString(ptr);
-    Module.ccall('sim_free_json', null, ['number'], [ptr]);
-    const s = JSON.parse(str);
-    tick = s.tick;
-    hiveNectar = s.hive_nectar;
-    energySpent = s.energy_spent;
-    totalTrips = s.total_trips;
-    patches = s.patches.map(p => ({...p, initialNectar: p.initialNectar || (p.nectar > 0 ? p.nectar + 100 : 100)}));
-    bees = s.bees.map(b => ({
-        id: b.id, role: b.role, state: b.state,
-        x: b.x, y: b.y, energy: b.energy, carrying: b.carrying,
-        targetPatch: b.target !== undefined ? b.target : (b.targetPatch !== undefined ? b.targetPatch : -1),
-        trail: b.trail || [], prevX: b.x, prevY: b.y,
-        tripsCompleted: b.tripsCompleted || 0
-    }));
-    return true;
+    try {
+        const ptr = Module.ccall('sim_get_state_json', 'number', [], []);
+        if (ptr === 0) { console.error('[WASM] sim_get_state_json returned null'); return false; }
+        const str = Module.UTF8ToString(ptr);
+        if (!str || str.length < 10) { console.error('[WASM] Empty JSON, length:', str ? str.length : 0); return false; }
+        const s = JSON.parse(str);
+        tick = s.tick;
+        hiveNectar = s.hive_nectar;
+        energySpent = s.energy_spent;
+        totalTrips = s.total_trips;
+        patches = s.patches.map(p => ({...p, initialNectar: p.initialNectar || (p.nectar > 0 ? p.nectar + 100 : 100)}));
+        bees = s.bees.map(b => ({
+            id: b.id, role: b.role, state: b.state,
+            x: b.x, y: b.y, energy: b.energy, carrying: b.carrying,
+            targetPatch: b.target !== undefined ? b.target : (b.targetPatch !== undefined ? b.targetPatch : -1),
+            trail: b.trail || [], prevX: b.x, prevY: b.y,
+            tripsCompleted: b.tripsCompleted || 0
+        }));
+        return true;
+    } catch (e) {
+        console.error('[WASM] syncFromWasm error:', e);
+        return false;
+    }
 }
 
 function unifiedInit() {
     if (simEngine === 'wasm' && wasmReady) {
+        console.log('[WASM] Calling sim_init...');
         Module.ccall('sim_init', null, ['number','number','number','number'],
             [NUM_BEES, NUM_SCOUTS, NUM_PATCHES, 42]);
-        syncFromWasm();
+        const ok = syncFromWasm();
+        console.log('[WASM] Init done, bees:', bees.length, 'patches:', patches.length, 'tick:', tick);
+        if (!ok || bees.length === 0) {
+            console.warn('[WASM] Init failed or empty, falling back to JS');
+            simEngine = 'js';
+            initSim();
+        }
     } else {
+        console.log('[JS] Initializing JS engine...');
         initSim();
     }
 }
@@ -954,9 +973,7 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-// Init
-unifiedInit();
-render();
+// Init deferred to tryLoadWasm promise above
 requestAnimationFrame(loop);
 </script>
 </body>
