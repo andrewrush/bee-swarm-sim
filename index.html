@@ -8,247 +8,123 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
-    --bg: #0f172a;
-    --bg-dark: #0b1120;
-    --panel: #1e293b;
-    --border: #334155;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
-    --accent: #fbbf24;
-    --accent-btn: #f59e0b;
-    --danger: #ef4444;
+    --bg: #0f172a; --bg-dark: #0b1120; --panel: #1e293b; --border: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --accent: #fbbf24; --accent-btn: #f59e0b;
+    --danger: #ef4444; --success: #22c55e; --info: #3b82f6;
   }
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    overflow: hidden;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    touch-action: none;
+    background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden; height: 100vh; display: flex; flex-direction: column; touch-action: none;
   }
   header {
     background: linear-gradient(90deg, var(--panel) 0%, var(--bg) 100%);
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-shrink: 0;
-    gap: 8px;
-    flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0; gap: 8px; flex-wrap: wrap;
   }
   h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
   h1 span { color: var(--accent); }
-  .controls {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+  .engine-badge {
+    font-size: 9px; padding: 2px 6px; border-radius: 4px;
+    background: var(--border); color: var(--muted); margin-left: 6px;
   }
+  .engine-badge.wasm { background: var(--info); color: #fff; }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   button, .btn {
-    background: var(--border);
-    color: var(--text);
-    border: none;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: all 0.2s;
-    white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
+    background: var(--border); color: var(--text); border: none; padding: 6px 12px;
+    border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s;
+    white-space: nowrap; -webkit-tap-highlight-color: transparent;
   }
   button:active, .btn:active { transform: scale(0.95); }
   button:hover { background: #475569; }
   button.primary { background: var(--accent-btn); color: var(--bg); font-weight: 600; }
   button.primary:hover { background: var(--accent); }
   button.danger { background: var(--danger); color: #fff; }
-  input[type="range"] {
-    width: 80px;
-    accent-color: var(--accent-btn);
-  }
-  .main {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-    position: relative;
-  }
-  #canvas-container {
-    flex: 1;
-    position: relative;
-    background: var(--bg-dark);
-    min-width: 0;
-  }
+  button.active { background: var(--success); color: #fff; }
+  input[type="range"] { width: 80px; accent-color: var(--accent-btn); }
+  .main { display: flex; flex: 1; overflow: hidden; position: relative; }
+  #canvas-container { flex: 1; position: relative; background: var(--bg-dark); min-width: 0; }
   canvas { display: block; width: 100%; height: 100%; touch-action: none; }
   .overlay {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(15, 23, 42, 0.9);
-    backdrop-filter: blur(8px);
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    font-size: 11px;
-    line-height: 1.7;
-    min-width: 150px;
-    max-width: 220px;
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
+    padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+    font-size: 11px; line-height: 1.7; min-width: 150px; max-width: 220px;
   }
-  .overlay h3 {
-    font-size: 11px;
-    color: var(--accent);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
+  .overlay h3 { font-size: 11px; color: var(--accent); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
   .stat-row { display: flex; justify-content: space-between; gap: 12px; }
   .stat-value { color: var(--accent); font-weight: 600; font-family: monospace; }
   .stat-value.danger { color: var(--danger); }
+  .stat-value.success { color: var(--success); }
   .sidebar {
-    width: 260px;
-    background: var(--panel);
-    border-left: 1px solid var(--border);
-    padding: 16px;
-    overflow-y: auto;
-    flex-shrink: 0;
-    transition: transform 0.3s ease;
+    width: 260px; background: var(--panel); border-left: 1px solid var(--border);
+    padding: 16px; overflow-y: auto; flex-shrink: 0; transition: transform 0.3s ease;
   }
   .sidebar.hidden { transform: translateX(100%); }
-  .sidebar h2 {
-    font-size: 12px;
-    color: var(--accent);
-    margin-bottom: 12px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    font-size: 11px;
-  }
-  .dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
+  .sidebar h2 { font-size: 12px; color: var(--accent); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
   .timeline { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
-  .timeline h2 { margin-bottom: 10px; }
   .chart-container {
-    height: 100px;
-    background: var(--bg-dark);
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 12px;
+    height: 100px; background: var(--bg-dark); border-radius: 8px;
+    border: 1px solid var(--border); position: relative; overflow: hidden; margin-bottom: 12px;
   }
   .chart-container canvas { width: 100%; height: 100%; }
   .file-input {
-    margin-top: 12px;
-    padding: 10px;
-    background: var(--bg-dark);
-    border-radius: 8px;
-    border: 1px dashed #475569;
-    text-align: center;
-    font-size: 11px;
-    color: var(--muted);
+    margin-top: 12px; padding: 10px; background: var(--bg-dark);
+    border-radius: 8px; border: 1px dashed #475569; text-align: center; font-size: 11px; color: var(--muted);
   }
   .file-input input { display: none; }
   .file-input label { cursor: pointer; display: block; padding: 6px; }
   .file-input label:active { color: var(--accent); }
-  .state-bars {
-    display: flex;
-    height: 6px;
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 6px;
-    background: var(--border);
-  }
+  .state-bars { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 6px; background: var(--border); }
   .state-bar { height: 100%; transition: width 0.3s ease; }
   .tooltip {
-    position: absolute;
-    background: rgba(15, 23, 42, 0.95);
-    border: 1px solid #475569;
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-size: 11px;
-    pointer-events: none;
-    z-index: 100;
-    display: none;
-    white-space: nowrap;
+    position: absolute; background: rgba(15, 23, 42, 0.95); border: 1px solid #475569;
+    padding: 6px 10px; border-radius: 8px; font-size: 11px; pointer-events: none;
+    z-index: 100; display: none; white-space: nowrap;
   }
   .menu-btn {
-    display: none;
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 50;
-    background: rgba(30, 41, 59, 0.9);
-    border: 1px solid var(--border);
-    padding: 8px 10px;
-    border-radius: 8px;
-    font-size: 16px;
+    display: none; position: absolute; top: 10px; right: 10px; z-index: 50;
+    background: rgba(30, 41, 59, 0.9); border: 1px solid var(--border);
+    padding: 8px 10px; border-radius: 8px; font-size: 16px;
   }
   .starving-banner {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(239, 68, 68, 0.9);
-    color: white;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    display: none;
-    z-index: 60;
-    pointer-events: none;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(239, 68, 68, 0.9); color: white; padding: 12px 24px;
+    border-radius: 8px; font-size: 14px; font-weight: 600; display: none; z-index: 60; pointer-events: none;
+  }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-bottom: 8px; color: var(--muted); }
+  .toggle-row button { padding: 3px 8px; font-size: 10px; min-width: 50px; }
+  .fps-counter {
+    position: absolute; top: 10px; right: 10px; background: rgba(15, 23, 42, 0.8);
+    padding: 4px 8px; border-radius: 6px; font-size: 10px; color: var(--muted); font-family: monospace; z-index: 30;
+  }
+  .wasm-status {
+    position: absolute; bottom: 10px; left: 10px; z-index: 30;
+    background: rgba(15, 23, 42, 0.8); padding: 4px 8px; border-radius: 6px;
+    font-size: 10px; color: var(--muted); font-family: monospace;
   }
 
   @media (max-width: 768px) and (orientation: portrait) {
-    header { padding: 8px 10px; }
-    h1 { font-size: 14px; }
-    .controls { gap: 4px; }
-    button, .btn { padding: 5px 8px; font-size: 12px; }
-    input[type="range"] { width: 60px; }
-    .main { flex-direction: column; }
-    .sidebar {
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 260px;
-      z-index: 40;
-      transform: translateX(100%);
-    }
-    .sidebar.open { transform: translateX(0); }
-    .menu-btn { display: block; }
-    .overlay {
-      top: 50px;
-      left: 8px;
-      padding: 8px;
-      font-size: 10px;
-      min-width: 130px;
-    }
+    header { padding: 8px 10px; } h1 { font-size: 14px; }
+    .controls { gap: 4px; } button, .btn { padding: 5px 8px; font-size: 12px; }
+    input[type="range"] { width: 60px; } .main { flex-direction: column; }
+    .sidebar { position: absolute; right: 0; top: 0; bottom: 0; width: 260px; z-index: 40; transform: translateX(100%); }
+    .sidebar.open { transform: translateX(0); } .menu-btn { display: block; }
+    .overlay { top: 50px; left: 8px; padding: 8px; font-size: 10px; min-width: 130px; }
+    .fps-counter { top: 50px; right: 8px; font-size: 9px; }
   }
-
   @media (max-width: 900px) and (orientation: landscape) {
-    header { padding: 6px 12px; }
-    h1 { font-size: 14px; }
-    .sidebar { width: 200px; padding: 10px; }
-    .chart-container { height: 80px; }
+    header { padding: 6px 12px; } h1 { font-size: 14px; }
+    .sidebar { width: 200px; padding: 10px; } .chart-container { height: 80px; }
     .overlay { padding: 8px; font-size: 10px; min-width: 130px; }
   }
 </style>
 </head>
 <body>
 <header>
-  <h1>🐝 <span>Bee</span> Swarm</h1>
+  <h1>🐝 <span>Bee</span> Swarm<span id="engine-badge" class="engine-badge">JS</span></h1>
   <div class="controls">
     <button id="btn-reset" onclick="resetSim()">↺</button>
     <button id="btn-play" class="primary" onclick="togglePlay()">▶</button>
@@ -262,6 +138,8 @@
 <div class="main">
   <div id="canvas-container">
     <canvas id="simCanvas"></canvas>
+    <div class="fps-counter" id="fps-counter">FPS: --</div>
+    <div class="wasm-status" id="wasm-status">Loading engine...</div>
     <div class="starving-banner" id="starving-banner">⚠️ HIVE STARVING</div>
     <div class="overlay">
       <h3>📊 Metrics</h3>
@@ -270,6 +148,7 @@
       <div class="stat-row"><span>Eff</span><span class="stat-value" id="m-eff">0.00</span></div>
       <div class="stat-row"><span>Trips</span><span class="stat-value" id="m-trips">0</span></div>
       <div class="stat-row"><span>Disc</span><span class="stat-value" id="m-disc">0/10</span></div>
+      <div class="stat-row"><span>Avg⚡</span><span class="stat-value" id="m-avg-energy">0</span></div>
       <div style="margin-top:8px">
         <div style="font-size:9px;color:var(--muted);margin-bottom:3px">States</div>
         <div class="state-bars" id="state-bars"></div>
@@ -293,19 +172,113 @@
       <div class="chart-container"><canvas id="nectarChart"></canvas></div>
       <h2>Efficiency</h2>
       <div class="chart-container"><canvas id="effChart"></canvas></div>
+      <h2>State Distribution</h2>
+      <div class="chart-container"><canvas id="stateChart"></canvas></div>
+    </div>
+
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <h2>View Options</h2>
+      <div class="toggle-row"><span>Trails</span><button id="btn-trails" class="active" onclick="toggleTrails()">ON</button></div>
+      <div class="toggle-row"><span>Vectors</span><button id="btn-vectors" onclick="toggleVectors()">OFF</button></div>
+      <div class="toggle-row"><span>Auto-Cam</span><button id="btn-autocam" onclick="toggleAutoCam()">OFF</button></div>
     </div>
 
     <div class="file-input">
-      <label for="file-upload">
-        📁 Load trace.json
-        <br><small>Or use built-in sim</small>
-      </label>
+      <label for="file-upload">📁 Load trace.json<br><small>Or use built-in sim</small></label>
       <input type="file" id="file-upload" accept=".json" onchange="loadTrace(event)">
     </div>
   </div>
 </div>
 
 <script>
+// ==================== WASM LOADER + FALLBACK ====================
+let simEngine = 'js';
+let wasmReady = false;
+let wasmLoading = true;
+
+function setWasmStatus(text, isWasm) {
+    const el = document.getElementById('wasm-status');
+    const badge = document.getElementById('engine-badge');
+    el.textContent = text;
+    if (isWasm) { badge.textContent = 'WASM'; badge.classList.add('wasm'); }
+    else { badge.textContent = 'JS'; badge.classList.remove('wasm'); }
+}
+
+function tryLoadWasm() {
+    return new Promise((resolve, reject) => {
+        if (typeof WebAssembly === 'undefined') { reject('WebAssembly not supported'); return; }
+        const s = document.createElement('script');
+        s.src = 'bee_sim.js';
+        s.onload = () => {
+            if (typeof Module !== 'undefined' && Module.calledRun) {
+                wasmReady = true; simEngine = 'wasm'; resolve();
+            } else if (typeof Module !== 'undefined') {
+                Module.onRuntimeInitialized = () => { wasmReady = true; simEngine = 'wasm'; resolve(); };
+            } else { reject('Module not found'); }
+        };
+        s.onerror = () => reject('bee_sim.js not found');
+        document.head.appendChild(s);
+        setTimeout(() => reject('Timeout'), 5000);
+    });
+}
+
+tryLoadWasm().then(() => {
+    setWasmStatus('WASM engine active', true);
+}).catch(err => {
+    console.log('WASM fallback:', err);
+    setWasmStatus('JS fallback', false);
+    wasmLoading = false;
+});
+
+function syncFromWasm() {
+    if (!wasmReady) return false;
+    const ptr = Module.ccall('sim_get_state_json', 'number', [], []);
+    const str = Module.UTF8ToString(ptr);
+    Module.ccall('sim_free_json', null, ['number'], [ptr]);
+    const s = JSON.parse(str);
+    tick = s.tick;
+    hiveNectar = s.hive_nectar;
+    energySpent = s.energy_spent;
+    totalTrips = s.total_trips;
+    patches = s.patches.map(p => ({...p, initialNectar: p.initialNectar || (p.nectar > 0 ? p.nectar + 100 : 100)}));
+    bees = s.bees.map(b => ({
+        id: b.id, role: b.role, state: b.state,
+        x: b.x, y: b.y, energy: b.energy, carrying: b.carrying,
+        targetPatch: b.target !== undefined ? b.target : (b.targetPatch !== undefined ? b.targetPatch : -1),
+        trail: b.trail || [], prevX: b.x, prevY: b.y,
+        tripsCompleted: b.tripsCompleted || 0
+    }));
+    return true;
+}
+
+function unifiedInit() {
+    if (simEngine === 'wasm' && wasmReady) {
+        Module.ccall('sim_init', null, ['number','number','number','number'],
+            [NUM_BEES, NUM_SCOUTS, NUM_PATCHES, 42]);
+        syncFromWasm();
+    } else {
+        initSim();
+    }
+}
+
+function unifiedStep() {
+    if (simEngine === 'wasm' && wasmReady) {
+        Module.ccall('sim_step', null, [], []);
+        syncFromWasm();
+        if (tick % TRACE_INTERVAL === 0) {
+            trace.push({
+                tick, hiveNectar, energySpent, totalTrips,
+                efficiency: hiveNectar / Math.max(1, energySpent),
+                patches: patches.map(p => ({...p, depleted: p.nectar <= 0})),
+                bees: bees.map(b => ({...b, target: b.targetPatch}))
+            });
+            if (trace.length > 200) trace.shift();
+        }
+    } else {
+        stepSim();
+    }
+}
+
 // ==================== CONFIG ====================
 const NUM_BEES = 120;
 const NUM_SCOUTS = 15;
@@ -336,12 +309,16 @@ let speed = 3;
 let trace = [];
 let useTrace = false;
 let traceFrame = 0;
+let showTrails = true;
+let showVectors = false;
+let autoCam = false;
 
 // ==================== CANVAS ====================
 const canvas = document.getElementById('simCanvas');
 const ctx = canvas.getContext('2d');
 const nChart = document.getElementById('nectarChart').getContext('2d');
 const eChart = document.getElementById('effChart').getContext('2d');
+const sChart = document.getElementById('stateChart').getContext('2d');
 const container = document.getElementById('canvas-container');
 
 let scale = 1.8;
@@ -363,10 +340,7 @@ function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 function moveTowards(from, to, step) {
   const d = dist(from, to);
   if (d <= step) return {...to};
-  return {
-    x: from.x + (to.x - from.x) / d * step,
-    y: from.y + (to.y - from.y) / d * step
-  };
+  return { x: from.x + (to.x - from.x) / d * step, y: from.y + (to.y - from.y) / d * step };
 }
 function randn(mean, std) {
   let u = 0, v = 0;
@@ -377,47 +351,25 @@ function randn(mean, std) {
 
 // ==================== GOAP ====================
 function evaluateGoal(bee, totalDanceScore, hiveStarving) {
-  // Critical: return home if very low energy and not already safe
-  if (bee.energy < 15 && bee.state !== 'resting') {
-    return {type:'survive', priority:100};
-  }
-  // Must deliver cargo
-  if (bee.carrying > 0) {
-    return {type:'deliver', priority:90};
-  }
-  // Finish dance
-  if (bee.state === 'dancing') {
-    return {type:'rest', priority:10};
-  }
-  // Resting in hive: recover energy
+  if (bee.energy < 15 && bee.state !== 'resting') return {type:'survive', priority:100};
+  if (bee.carrying > 0) return {type:'deliver', priority:90};
+  if (bee.state === 'dancing') return {type:'rest', priority:10};
   if (bee.state === 'resting') {
     const threshold = hiveStarving ? 30 : 80;
-    if (bee.energy < threshold) {
-      return {type:'rest', priority:25};
-    }
+    if (bee.energy < threshold) return {type:'rest', priority:25};
   }
-  // Ready to work
-  if (bee.role === 'scout') {
-    return {type:'explore', priority:50};
-  }
-  if (totalDanceScore > 0.1) {
-    return {type:'forage', priority:60};
-  }
-  // Nothing to do
+  if (bee.role === 'scout') return {type:'explore', priority:50};
+  if (totalDanceScore > 0.1) return {type:'forage', priority:60};
   return {type:'rest', priority:20};
 }
 
 function executeGoal(bee, goal, patches, danceScore) {
   switch (goal.type) {
     case 'survive':
-      if (bee.state !== 'returning' && bee.state !== 'resting') {
-        bee.state = 'returning';
-      }
+      if (bee.state !== 'returning' && bee.state !== 'resting') bee.state = 'returning';
       break;
     case 'deliver':
-      if (bee.state !== 'returning') {
-        bee.state = 'returning';
-      }
+      if (bee.state !== 'returning') bee.state = 'returning';
       break;
     case 'explore':
       if (bee.state === 'resting') {
@@ -449,9 +401,7 @@ function executeGoal(bee, goal, patches, danceScore) {
       }
       break;
     }
-    case 'rest':
-      // Stay in current state
-      break;
+    case 'rest': break;
   }
 }
 
@@ -472,28 +422,17 @@ function initSim() {
     patches.push({ id: i, x: 0, y: 0, nectar: 0, initialNectar: 0, discovered: false });
     regeneratePatch(patches[i]);
   }
-
   bees = [];
   for (let i = 0; i < NUM_BEES; i++) {
     bees.push({
-      id: i,
-      role: i < NUM_SCOUTS ? 'scout' : 'worker',
-      state: 'resting',
-      x: 0, y: 0,
-      energy: 100,
-      carrying: 0,
-      targetPatch: -1,
-      danceTimer: 0,
-      foundNewPatch: false,
-      tripsCompleted: 0,
-      totalNectarDelivered: 0,
-      scoutDirX: 0,
-      scoutDirY: 0
+      id: i, role: i < NUM_SCOUTS ? 'scout' : 'worker', state: 'resting',
+      x: 0, y: 0, energy: 100, carrying: 0, targetPatch: -1, danceTimer: 0,
+      foundNewPatch: false, tripsCompleted: 0, totalNectarDelivered: 0,
+      scoutDirX: 0, scoutDirY: 0, trail: [], prevX: 0, prevY: 0
     });
   }
-
   danceScore = new Array(NUM_PATCHES).fill(0);
-  hiveNectar = 800; // starting reserve
+  hiveNectar = 800;
   energySpent = 0;
   totalTrips = 0;
   tick = 0;
@@ -502,45 +441,33 @@ function initSim() {
   traceFrame = 0;
 }
 
-// ==================== SIMULATION STEP ====================
+// ==================== SIMULATION STEP (JS FALLBACK) ====================
 function stepSim() {
   if (useTrace) {
     if (traceFrame < trace.length - 1) traceFrame++;
-    render();
-    updateCharts();
-    return;
+    render(); updateCharts(); return;
   }
-
-  // Dance decay
   for (let i = 0; i < NUM_PATCHES; i++) danceScore[i] *= 0.95;
-
-  // Hive upkeep
   const upkeep = Math.min(hiveNectar, NUM_BEES * HIVE_UPKEEP_PER_BEE);
   hiveNectar -= upkeep;
   const hiveStarving = hiveNectar <= 0;
 
-  // Regenerate depleted patches individually (snake-apple)
   for (let patch of patches) {
     if (patch.nectar <= 0) {
-      // Bees heading here get confused and forget
       for (let bee of bees) {
         if (bee.targetPatch === patch.id) {
-          bee.targetPatch = -1;
-          bee.state = 'returning';
-          bee.foundNewPatch = false;
+          bee.targetPatch = -1; bee.state = 'returning'; bee.foundNewPatch = false;
         }
       }
       danceScore[patch.id] = 0;
       regeneratePatch(patch);
     }
   }
-
   const totalDanceScore = danceScore.reduce((a,b) => a+b, 0);
 
   for (let bee of bees) {
     const energyBefore = bee.energy;
-
-    // GOAP
+    bee.prevX = bee.x; bee.prevY = bee.y;
     const goal = evaluateGoal(bee, totalDanceScore, hiveStarving);
     executeGoal(bee, goal, patches, danceScore);
 
@@ -550,50 +477,36 @@ function stepSim() {
         bee.energy = Math.min(100, bee.energy + recoverRate);
         break;
       }
-
       case 'exploring': {
         bee.x += (bee.scoutDirX + randn(0, 0.3)) * SCOUT_SPEED;
         bee.y += (bee.scoutDirY + randn(0, 0.3)) * SCOUT_SPEED;
         bee.energy -= ENERGY_COST_MOVE * (SCOUT_SPEED / SPEED);
         for (let patch of patches) {
           if (patch.nectar > 0 && dist(bee, patch) < DETECT_RADIUS) {
-            bee.targetPatch = patch.id;
-            patch.discovered = true;
-            bee.foundNewPatch = true;
-            bee.state = 'returning';
-            break;
+            bee.targetPatch = patch.id; patch.discovered = true;
+            bee.foundNewPatch = true; bee.state = 'returning'; break;
           }
         }
         if (bee.energy < 20 && bee.state === 'exploring') {
-          bee.state = 'returning';
-          bee.foundNewPatch = false;
-          bee.targetPatch = -1;
+          bee.state = 'returning'; bee.foundNewPatch = false; bee.targetPatch = -1;
         }
         break;
       }
-
       case 'foraging': {
-        // Confused return if patch gone/empty
         if (bee.targetPatch < 0 || bee.targetPatch >= NUM_PATCHES || patches[bee.targetPatch].nectar <= 0) {
-          bee.targetPatch = -1;
-          bee.state = 'returning';
-          break;
+          bee.targetPatch = -1; bee.state = 'returning'; break;
         }
         const patch = patches[bee.targetPatch];
         Object.assign(bee, moveTowards(bee, patch, SPEED));
         bee.energy -= ENERGY_COST_MOVE;
         if (dist(bee, patch) < 2.0) {
           const take = Math.min(CARRY_CAPACITY - bee.carrying, patch.nectar, 2.0);
-          patch.nectar -= take;
-          bee.carrying += take;
-          if (bee.carrying >= CARRY_CAPACITY || patch.nectar <= 0 || bee.energy < 25) {
-            bee.state = 'returning';
-          }
+          patch.nectar -= take; bee.carrying += take;
+          if (bee.carrying >= CARRY_CAPACITY || patch.nectar <= 0 || bee.energy < 25) bee.state = 'returning';
         }
         if (bee.energy < 10) bee.state = 'returning';
         break;
       }
-
       case 'returning': {
         Object.assign(bee, moveTowards(bee, HIVE, SPEED));
         bee.energy -= ENERGY_COST_MOVE;
@@ -601,62 +514,44 @@ function stepSim() {
           hiveNectar += bee.carrying;
           bee.totalNectarDelivered += bee.carrying;
           bee.carrying = 0;
-          bee.tripsCompleted++;
-          totalTrips++;
+          bee.tripsCompleted++; totalTrips++;
           if (bee.role === 'scout' && bee.foundNewPatch && bee.targetPatch >= 0) {
-            bee.state = 'dancing';
-            bee.danceTimer = 10;
-          } else {
-            bee.state = 'resting';
-          }
+            bee.state = 'dancing'; bee.danceTimer = 10;
+          } else { bee.state = 'resting'; }
         }
         break;
       }
-
       case 'dancing': {
         if (bee.targetPatch >= 0 && bee.targetPatch < NUM_PATCHES) {
           const patch = patches[bee.targetPatch];
           if (patch.nectar > 0) {
             const d = Math.max(1, dist(HIVE, patch));
-            const score = patch.nectar / (d + 1);
-            danceScore[bee.targetPatch] += score;
+            danceScore[bee.targetPatch] += patch.nectar / (d + 1);
           }
         }
-        bee.danceTimer -= 1;
-        bee.energy -= 0.05;
+        bee.danceTimer -= 1; bee.energy -= 0.05;
         if (bee.danceTimer <= 0) bee.state = 'resting';
         break;
       }
     }
-
+    if (bee.state !== 'resting' && bee.state !== 'dancing') {
+      bee.trail.push({x: bee.x, y: bee.y});
+      if (bee.trail.length > 30) bee.trail.shift();
+    } else { bee.trail = []; }
     const spent = energyBefore - bee.energy;
     if (spent > 0) energySpent += spent;
     if (bee.energy <= 0) {
-      bee.energy = 0; bee.carrying = 0;
-      bee.state = 'resting';
-      bee.x = HIVE.x; bee.y = HIVE.y;
+      bee.energy = 0; bee.carrying = 0; bee.state = 'resting';
+      bee.x = HIVE.x; bee.y = HIVE.y; bee.trail = [];
     }
   }
-
   tick++;
-
   if (tick % TRACE_INTERVAL === 0) {
     trace.push({
       tick, hiveNectar, energySpent, totalTrips,
       efficiency: hiveNectar / Math.max(1, energySpent),
-      patches: patches.map(p => ({
-        id: p.id, x: p.x, y: p.y,
-        nectar: p.nectar,
-        discovered: p.discovered,
-        depleted: p.nectar <= 0
-      })),
-      bees: bees.map(b => ({
-        id: b.id, role: b.role, state: b.state,
-        x: b.x, y: b.y,
-        energy: b.energy,
-        carrying: b.carrying,
-        target: b.targetPatch
-      }))
+      patches: patches.map(p => ({id:p.id, x:p.x, y:p.y, nectar:p.nectar, discovered:p.discovered, depleted:p.nectar<=0})),
+      bees: bees.map(b => ({id:b.id, role:b.role, state:b.state, x:b.x, y:b.y, energy:b.energy, carrying:b.carrying, target:b.targetPatch, trail:b.trail.slice()}))
     });
     if (trace.length > 200) trace.shift();
   }
@@ -666,16 +561,44 @@ function stepSim() {
 function worldToScreen(wx, wy) {
   return { x: offsetX + wx * scale, y: offsetY + wy * scale };
 }
+function drawTrail(bee) {
+  if (!bee.trail || bee.trail.length < 2) return;
+  ctx.beginPath();
+  for (let i = 0; i < bee.trail.length; i++) {
+    const p = worldToScreen(bee.trail[i].x, bee.trail[i].y);
+    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  }
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+function drawVector(bee) {
+  if (bee.state === 'resting' || bee.state === 'dancing') return;
+  const pos = worldToScreen(bee.x, bee.y);
+  const dx = bee.x - bee.prevX, dy = bee.y - bee.prevY;
+  const len = Math.hypot(dx, dy);
+  if (len < 0.1) return;
+  const vx = (dx / len) * 15, vy = (dy / len) * 15;
+  ctx.beginPath(); ctx.moveTo(pos.x, pos.y); ctx.lineTo(pos.x + vx, pos.y + vy);
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+}
+function updateAutoCam(currentBees) {
+  if (!autoCam || currentBees.length === 0) return;
+  let cx = 0, cy = 0;
+  for (let b of currentBees) { cx += b.x; cy += b.y; }
+  cx /= currentBees.length; cy /= currentBees.length;
+  const targetX = canvas.width / 2 - cx * scale;
+  const targetY = canvas.height / 2 - cy * scale;
+  offsetX += (targetX - offsetX) * 0.05;
+  offsetY += (targetY - offsetY) * 0.05;
+}
 
 function render() {
   ctx.fillStyle = '#0b1120';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
   const gridSize = 50 * scale;
-  const startX = offsetX % gridSize;
-  const startY = offsetY % gridSize;
+  const startX = offsetX % gridSize, startY = offsetY % gridSize;
   for (let x = startX - gridSize; x < canvas.width; x += gridSize) {
     ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
   }
@@ -684,7 +607,6 @@ function render() {
   }
 
   let currentPatches, currentBees, currentHiveNectar, currentEnergySpent, currentTrips, currentStarving;
-
   if (useTrace) {
     const frame = trace[traceFrame] || trace[trace.length - 1];
     currentPatches = frame.patches;
@@ -695,34 +617,25 @@ function render() {
     tick = frame.tick;
     currentStarving = false;
   } else {
-    currentPatches = patches;
-    currentBees = bees;
-    currentHiveNectar = hiveNectar;
-    currentEnergySpent = energySpent;
-    currentTrips = totalTrips;
-    currentStarving = hiveNectar <= 0;
+    currentPatches = patches; currentBees = bees;
+    currentHiveNectar = hiveNectar; currentEnergySpent = energySpent;
+    currentTrips = totalTrips; currentStarving = hiveNectar <= 0;
   }
+  updateAutoCam(currentBees);
+  if (showTrails) for (let b of currentBees) drawTrail(b);
 
   for (let p of currentPatches) {
     const pos = worldToScreen(p.x, p.y);
-    const size = 3 + (p.nectar / p.initialNectar) * 12;
+    const size = 3 + (p.nectar / (p.initialNectar || 1)) * 12;
     const alpha = p.discovered ? 1 : 0.25;
     ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
-    ctx.fillStyle = p.nectar > 0 ? '#ec4899' : '#475569';
-    ctx.fill();
-    if (p.discovered && p.nectar > 0) {
-      ctx.strokeStyle = '#f472b6';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = p.nectar > 0 ? '#ec4899' : '#475569'; ctx.fill();
+    if (p.discovered && p.nectar > 0) { ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 2; ctx.stroke(); }
     if (p.discovered) {
       const barW = size * 2;
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW, 3);
-      ctx.fillStyle = '#22c55e';
-      ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW * (p.nectar / p.initialNectar), 3);
+      ctx.fillStyle = '#334155'; ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW, 3);
+      ctx.fillStyle = '#22c55e'; ctx.fillRect(pos.x - barW/2, pos.y - size - 8, barW * (p.nectar / (p.initialNectar || 1)), 3);
     }
     ctx.globalAlpha = 1;
   }
@@ -736,18 +649,13 @@ function render() {
     if (i === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
   }
   ctx.closePath();
-  ctx.fillStyle = currentStarving ? '#ef4444' : '#fbbf24';
-  ctx.fill();
-  ctx.strokeStyle = currentStarving ? '#dc2626' : '#f59e0b';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  ctx.fillStyle = currentStarving ? '#ef4444' : '#fbbf24'; ctx.fill();
+  ctx.strokeStyle = currentStarving ? '#dc2626' : '#f59e0b'; ctx.lineWidth = 2; ctx.stroke();
 
   const glow = Math.min(20, currentHiveNectar / 50);
   if (glow > 0) {
-    ctx.beginPath();
-    ctx.arc(hivePos.x, hivePos.y, 12 + glow, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(251, 191, 36, ${Math.min(0.3, glow/40)})`;
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(hivePos.x, hivePos.y, 12 + glow, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(251, 191, 36, ${Math.min(0.3, glow/40)})`; ctx.fill();
   }
 
   for (let b of currentBees) {
@@ -760,24 +668,18 @@ function render() {
       case 'dancing': color = '#a855f7'; size = 3.5; break;
       default: color = '#64748b'; size = 2;
     }
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, size, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
     if (b.state === 'dancing') {
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, size + 4 + Math.sin(Date.now() / 100) * 2, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(168, 85, 247, 0.5)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      ctx.strokeStyle = 'rgba(168, 85, 247, 0.5)'; ctx.lineWidth = 1; ctx.stroke();
     }
     if (b.carrying > 0) {
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y, size + 1.5, 0, Math.PI * 2);
-      ctx.strokeStyle = '#22c55e';
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(pos.x, pos.y, size + 1.5, 0, Math.PI * 2);
+      ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1; ctx.stroke();
     }
+    if (showVectors) drawVector(b);
   }
 
   document.getElementById('m-tick').textContent = tick;
@@ -788,6 +690,11 @@ function render() {
   document.getElementById('m-trips').textContent = currentTrips;
   const disc = currentPatches.filter(p => p.discovered).length;
   document.getElementById('m-disc').textContent = `${disc}/${NUM_PATCHES}`;
+
+  const avgEnergy = currentBees.reduce((s,b) => s + b.energy, 0) / currentBees.length;
+  const avgEl = document.getElementById('m-avg-energy');
+  avgEl.textContent = avgEnergy.toFixed(1);
+  avgEl.className = 'stat-value' + (avgEnergy < 30 ? ' danger' : (avgEnergy > 70 ? ' success' : ''));
 
   document.getElementById('starving-banner').style.display = currentStarving ? 'block' : 'none';
 
@@ -809,6 +716,7 @@ function render() {
 // ==================== CHARTS ====================
 const nectarHistory = [];
 const effHistory = [];
+const stateHistory = [];
 
 function updateCharts() {
   if (useTrace) {
@@ -816,13 +724,22 @@ function updateCharts() {
     if (!frame) return;
     nectarHistory.push(frame.hiveNectar);
     effHistory.push(frame.efficiency);
+    if (frame.bees) {
+      const st = {resting:0, exploring:0, foraging:0, returning:0, dancing:0};
+      for (let b of frame.bees) st[b.state] = (st[b.state] || 0) + 1;
+      stateHistory.push(st);
+    }
   } else {
     nectarHistory.push(hiveNectar);
     effHistory.push(hiveNectar / Math.max(1, energySpent));
+    const st = {resting:0, exploring:0, foraging:0, returning:0, dancing:0};
+    for (let b of bees) st[b.state] = (st[b.state] || 0) + 1;
+    stateHistory.push(st);
   }
-  if (nectarHistory.length > 200) { nectarHistory.shift(); effHistory.shift(); }
+  if (nectarHistory.length > 200) { nectarHistory.shift(); effHistory.shift(); stateHistory.shift(); }
   drawChart(nChart, nectarHistory, '#fbbf24');
   drawChart(eChart, effHistory, '#22c55e');
+  drawStateChart(sChart, stateHistory);
 }
 
 function drawChart(c, data, color) {
@@ -833,19 +750,36 @@ function drawChart(c, data, color) {
   const max = Math.max(...data, 0.001);
   const min = Math.min(...data, 0);
   const range = max - min || 1;
-  c.beginPath();
-  c.strokeStyle = color;
-  c.lineWidth = 2;
+  c.beginPath(); c.strokeStyle = color; c.lineWidth = 2;
   for (let i = 0; i < data.length; i++) {
     const x = (i / (data.length - 1)) * w;
     const y = h - ((data[i] - min) / range) * (h - 20) - 10;
     if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
   }
   c.stroke();
-  c.fillStyle = '#94a3b8';
-  c.font = '10px sans-serif';
+  c.fillStyle = '#94a3b8'; c.font = '10px sans-serif';
   c.fillText(max.toFixed(1), 4, 12);
   c.fillText(min.toFixed(1), 4, h - 4);
+}
+
+function drawStateChart(c, data) {
+  const w = c.canvas.width = c.canvas.clientWidth;
+  const h = c.canvas.height = c.canvas.clientHeight;
+  c.clearRect(0, 0, w, h);
+  if (data.length < 2) return;
+  const colors = {resting:'#64748b', exploring:'#f97316', foraging:'#fbbf24', returning:'#22c55e', dancing:'#a855f7'};
+  const order = ['resting', 'exploring', 'foraging', 'returning', 'dancing'];
+  for (let i = 0; i < data.length; i++) {
+    const x = (i / (data.length - 1)) * w;
+    let y = h;
+    for (let s of order) {
+      const count = data[i][s] || 0;
+      const barH = (count / NUM_BEES) * h;
+      c.fillStyle = colors[s];
+      c.fillRect(x - 1, y - barH, Math.max(2, w / data.length), barH);
+      y -= barH;
+    }
+  }
 }
 
 // ==================== CONTROLS ====================
@@ -853,52 +787,63 @@ function togglePlay() {
   playing = !playing;
   document.getElementById('btn-play').textContent = playing ? '⏸' : '▶';
 }
-
 function resetSim() {
   playing = false;
   document.getElementById('btn-play').textContent = '▶';
-  hiveNectar = 0;
-  energySpent = 0;
-  totalTrips = 0;
-  initSim();
-  nectarHistory.length = 0;
-  effHistory.length = 0;
+  hiveNectar = 0; energySpent = 0; totalTrips = 0;
+  unifiedInit();
+  nectarHistory.length = 0; effHistory.length = 0; stateHistory.length = 0;
   render();
 }
-
 function exportTrace() {
   const blob = new Blob([JSON.stringify(trace, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = 'trace.json';
-  a.click();
+  a.href = url; a.download = 'trace.json'; a.click();
 }
-
 function loadTrace(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev) => {
     trace = JSON.parse(ev.target.result);
-    useTrace = true;
-    traceFrame = 0;
-    playing = false;
+    useTrace = true; traceFrame = 0; playing = false;
     document.getElementById('btn-play').textContent = '▶';
-    nectarHistory.length = 0;
-    effHistory.length = 0;
-    for (let f of trace) { nectarHistory.push(f.hiveNectar); effHistory.push(f.efficiency); }
-    render();
-    updateCharts();
+    nectarHistory.length = 0; effHistory.length = 0; stateHistory.length = 0;
+    for (let f of trace) {
+      nectarHistory.push(f.hiveNectar); effHistory.push(f.efficiency);
+      if (f.bees) {
+        const st = {resting:0, exploring:0, foraging:0, returning:0, dancing:0};
+        for (let b of f.bees) st[b.state] = (st[b.state] || 0) + 1;
+        stateHistory.push(st);
+      }
+    }
+    render(); updateCharts();
   };
   reader.readAsText(file);
 }
-
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+function toggleTrails() {
+  showTrails = !showTrails;
+  const btn = document.getElementById('btn-trails');
+  btn.textContent = showTrails ? 'ON' : 'OFF';
+  btn.className = showTrails ? 'active' : '';
+  render();
+}
+function toggleVectors() {
+  showVectors = !showVectors;
+  const btn = document.getElementById('btn-vectors');
+  btn.textContent = showVectors ? 'ON' : 'OFF';
+  btn.className = showVectors ? 'active' : '';
+  render();
+}
+function toggleAutoCam() {
+  autoCam = !autoCam;
+  const btn = document.getElementById('btn-autocam');
+  btn.textContent = autoCam ? 'ON' : 'OFF';
+  btn.className = autoCam ? 'active' : '';
 }
 
-// Speed control
 document.getElementById('speed').addEventListener('input', (e) => {
   speed = parseInt(e.target.value);
   document.getElementById('speed-val').textContent = speed + 'x';
@@ -906,18 +851,13 @@ document.getElementById('speed').addEventListener('input', (e) => {
 
 // ==================== MOUSE + TOUCH ====================
 function getPointerPos(e) {
-  if (e.touches && e.touches.length > 0) {
-    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  }
+  if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
   return { x: e.clientX, y: e.clientY };
 }
-
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const factor = e.deltaY > 0 ? 0.9 : 1.1;
-  scale *= factor;
-  scale = Math.max(0.3, Math.min(20, scale));
-  render();
+  scale *= factor; scale = Math.max(0.3, Math.min(20, scale)); render();
 }, {passive: false});
 
 function onDown(e) {
@@ -929,23 +869,17 @@ function onMove(e) {
   if (!isDragging) {
     const rect = canvas.getBoundingClientRect();
     const p = getPointerPos(e);
-    const mx = p.x - rect.left;
-    const my = p.y - rect.top;
+    const mx = p.x - rect.left, my = p.y - rect.top;
     const tip = document.getElementById('tooltip');
     let currentBees, currentPatches;
-    if (useTrace) {
-      const frame = trace[traceFrame];
-      currentBees = frame.bees;
-      currentPatches = frame.patches;
-    } else {
-      currentBees = bees;
-      currentPatches = patches;
-    }
+    if (useTrace) { const frame = trace[traceFrame]; currentBees = frame.bees; currentPatches = frame.patches; }
+    else { currentBees = bees; currentPatches = patches; }
     let found = null;
     for (let b of currentBees) {
       const sp = worldToScreen(b.x, b.y);
       if (Math.hypot(sp.x - mx, sp.y - my) < 10) {
         found = `Bee #${b.id} (${b.role})<br>${b.state}<br>⚡${b.energy.toFixed(1)} 🍯${b.carrying.toFixed(1)}`;
+        if (b.tripsCompleted !== undefined) found += `<br>Trips: ${b.tripsCompleted}`;
         break;
       }
     }
@@ -953,24 +887,16 @@ function onMove(e) {
       for (let p of currentPatches) {
         const sp = worldToScreen(p.x, p.y);
         if (Math.hypot(sp.x - mx, sp.y - my) < 15) {
-          found = `Patch #${p.id}<br>🍯${p.nectar.toFixed(1)}<br>Found: ${p.discovered?'yes':'no'}`;
-          break;
+          found = `Patch #${p.id}<br>🍯${p.nectar.toFixed(1)}<br>Found: ${p.discovered?'yes':'no'}`; break;
         }
       }
     }
-    if (found) {
-      tip.innerHTML = found;
-      tip.style.display = 'block';
-      tip.style.left = (p.x + 12) + 'px';
-      tip.style.top = (p.y + 12) + 'px';
-    } else {
-      tip.style.display = 'none';
-    }
+    if (found) { tip.innerHTML = found; tip.style.display = 'block'; tip.style.left = (p.x + 12) + 'px'; tip.style.top = (p.y + 12) + 'px'; }
+    else { tip.style.display = 'none'; }
     return;
   }
   const p = getPointerPos(e);
-  offsetX = p.x - dragStart.x;
-  offsetY = p.y - dragStart.y;
+  offsetX = p.x - dragStart.x; offsetY = p.y - dragStart.y;
   render();
 }
 function onUp() { isDragging = false; }
@@ -978,33 +904,35 @@ function onUp() { isDragging = false; }
 canvas.addEventListener('mousedown', onDown);
 window.addEventListener('mousemove', onMove);
 window.addEventListener('mouseup', onUp);
-
 canvas.addEventListener('touchstart', onDown, {passive: false});
 window.addEventListener('touchmove', onMove, {passive: false});
 window.addEventListener('touchend', onUp);
 
-// Pinch zoom
 let pinchDist = 0;
 canvas.addEventListener('touchstart', (e) => {
-  if (e.touches.length === 2) {
-    pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-  }
+  if (e.touches.length === 2) pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
 }, {passive: false});
 canvas.addEventListener('touchmove', (e) => {
   if (e.touches.length === 2) {
     e.preventDefault();
     const newDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
     const factor = newDist / pinchDist;
-    scale *= factor;
-    scale = Math.max(0.3, Math.min(20, scale));
-    pinchDist = newDist;
-    render();
+    scale *= factor; scale = Math.max(0.3, Math.min(20, scale));
+    pinchDist = newDist; render();
   }
 }, {passive: false});
 
 // ==================== MAIN LOOP ====================
 let lastTime = 0;
+let frameCount = 0;
+let lastFpsTime = 0;
+
 function loop(timestamp) {
+  frameCount++;
+  if (timestamp - lastFpsTime >= 1000) {
+    document.getElementById('fps-counter').textContent = 'FPS: ' + frameCount;
+    frameCount = 0; lastFpsTime = timestamp;
+  }
   if (playing) {
     const dt = timestamp - lastTime;
     if (dt > 1000 / (speed * 10)) {
@@ -1012,7 +940,7 @@ function loop(timestamp) {
         if (traceFrame < trace.length - 1) traceFrame++;
         else playing = false;
       } else {
-        stepSim();
+        unifiedStep();
         if (tick % 2 === 0) updateCharts();
       }
       lastTime = timestamp;
@@ -1023,7 +951,7 @@ function loop(timestamp) {
 }
 
 // Init
-initSim();
+unifiedInit();
 render();
 requestAnimationFrame(loop);
 </script>

@@ -1,6 +1,9 @@
-bee_sim
+*.so
+*_app
+*.tmp
 *.o
 *.log
-*.tmp
+*.exe
 build/
+bee_sim
 trace.json

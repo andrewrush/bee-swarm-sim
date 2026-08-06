@@ -1,372 +1,61 @@
 #include <iostream>
 #include <fstream>
-#include <vector>
-#include <random>
-#include <cmath>
-#include <algorithm>
-#include <iomanip>
+#include <cstring>
+#include "bee_swarm_sim.hpp"
 
 using namespace std;
 
-struct Vec2 {
-    double x = 0.0;
-    double y = 0.0;
-};
-
-double distance(Vec2 a, Vec2 b) {
-    return hypot(a.x - b.x, a.y - b.y);
+void printUsage(const char* prog) {
+    cout << "Usage: " << prog << " [options]\n"
+         << "Options:\n"
+         << "  --bees N          Total bees (default: 120)\n"
+         << "  --scouts N        Number of scouts (default: 15)\n"
+         << "  --patches N       Flower patches (default: 10)\n"
+         << "  --ticks N         Simulation ticks (default: 500)\n"
+         << "  --trace N         Trace interval (default: 5)\n"
+         << "  --speed N         Bee speed (default: 3.0)\n"
+         << "  --scout-speed N   Scout speed (default: 5.0)\n"
+         << "  --upkeep N        Upkeep per bee per tick (default: 0.02)\n"
+         << "  --seed N          Random seed (default: 42)\n"
+         << "  --out FILE        Output trace file (default: trace.json)\n"
+         << "  --help            Show this help\n";
 }
 
-Vec2 moveTowards(Vec2 from, Vec2 to, double step) {
-    double d = distance(from, to);
-    if (d <= step) return to;
-    Vec2 result;
-    result.x = from.x + (to.x - from.x) / d * step;
-    result.y = from.y + (to.y - from.y) / d * step;
-    return result;
+SimParams parseArgs(int argc, char** argv) {
+    SimParams p;
+    for (int i = 1; i < argc; ++i) {
+        string arg = argv[i];
+        if (arg == "--help" || arg == "-h") { printUsage(argv[0]); exit(0); }
+        else if (arg == "--bees" && i + 1 < argc) p.numBees = stoi(argv[++i]);
+        else if (arg == "--scouts" && i + 1 < argc) p.numScouts = stoi(argv[++i]);
+        else if (arg == "--patches" && i + 1 < argc) p.numPatches = stoi(argv[++i]);
+        else if (arg == "--ticks" && i + 1 < argc) p.ticks = stoi(argv[++i]);
+        else if (arg == "--trace" && i + 1 < argc) p.traceInterval = stoi(argv[++i]);
+        else if (arg == "--speed" && i + 1 < argc) p.speed = stod(argv[++i]);
+        else if (arg == "--scout-speed" && i + 1 < argc) p.scoutSpeed = stod(argv[++i]);
+        else if (arg == "--upkeep" && i + 1 < argc) p.hiveUpkeepPerBee = stod(argv[++i]);
+        else if (arg == "--seed" && i + 1 < argc) p.seed = stoul(argv[++i]);
+        else if (arg == "--out" && i + 1 < argc) p.outFile = argv[++i];
+    }
+    return p;
 }
 
-enum class Role { Scout, Worker };
-enum class State { Resting, Exploring, Foraging, Returning, Dancing };
+int main(int argc, char** argv) {
+    SimParams P = parseArgs(argc, argv);
+    Simulation sim;
+    sim.init(P);
 
-string roleToString(Role r) {
-    return r == Role::Scout ? "scout" : "worker";
-}
-
-string stateToString(State s) {
-    switch (s) {
-        case State::Resting: return "resting";
-        case State::Exploring: return "exploring";
-        case State::Foraging: return "foraging";
-        case State::Returning: return "returning";
-        case State::Dancing: return "dancing";
-    }
-    return "unknown";
-}
-
-// ===== GOAP =====
-enum class GoalType { Survive, Deliver, Explore, Forage, Rest };
-
-struct Goal {
-    GoalType type;
-    int priority;
-};
-
-struct FlowerPatch {
-    int id;
-    Vec2 pos;
-    double nectar;
-    double initialNectar;
-    bool discovered = false;
-};
-
-struct Bee {
-    int id;
-    Role role;
-    State state = State::Resting;
-    Vec2 pos;
-    double energy = 100.0;
-    double carrying = 0.0;
-    int targetPatch = -1;
-    double danceTimer = 0.0;
-    bool foundNewPatch = false;
-    int tripsCompleted = 0;
-    double totalNectarDelivered = 0.0;
-    double scoutDirX = 0.0;
-    double scoutDirY = 0.0;
-};
-
-mt19937 rng(42);
-
-void regeneratePatch(FlowerPatch &patch, double minDist, double maxDist) {
-    double angle = uniform_real_distribution<double>(0.0, 2.0 * M_PI)(rng);
-    double dist = minDist + uniform_real_distribution<double>(0.0, maxDist - minDist)(rng);
-    patch.pos = {cos(angle) * dist, sin(angle) * dist};
-    uniform_real_distribution<double> nectarDist(300.0, 800.0);
-    patch.nectar = nectarDist(rng);
-    patch.initialNectar = patch.nectar;
-    patch.discovered = false;
-}
-
-Goal evaluateGoal(const Bee& bee, double totalDanceScore, bool hiveStarving) {
-    // Critical: return home if very low energy and not already safe
-    if (bee.energy < 15 && bee.state != State::Resting) {
-        return {GoalType::Survive, 100};
-    }
-    // Must deliver cargo
-    if (bee.carrying > 0) {
-        return {GoalType::Deliver, 90};
-    }
-    // Finish dance
-    if (bee.state == State::Dancing) {
-        return {GoalType::Rest, 10};
-    }
-    // Resting in hive: recover energy
-    if (bee.state == State::Resting) {
-        double threshold = hiveStarving ? 25.0 : 80.0;
-        if (bee.energy < threshold) {
-            return {GoalType::Rest, 25};
-        }
-    }
-    // Starving hive: everyone who can work should work
-    if (hiveStarving && bee.energy > 30) {
-        if (bee.role == Role::Scout) {
-            return {GoalType::Explore, 55};
-        }
-        if (totalDanceScore > 0.05) {
-            return {GoalType::Forage, 60};
-        }
-        // Even workers explore when starving and no dance info
-        return {GoalType::Explore, 40};
-    }
-    // Normal operation
-    if (bee.role == Role::Scout) {
-        return {GoalType::Explore, 50};
-    }
-    if (totalDanceScore > 0.1) {
-        return {GoalType::Forage, 60};
-    }
-    return {GoalType::Rest, 20};
-}
-
-void executeGoal(Bee &bee, Goal goal, const Vec2& hive,
-                 vector<FlowerPatch>& patches, vector<double>& danceScore,
-                 mt19937& rng) {
-    switch (goal.type) {
-        case GoalType::Survive:
-            if (bee.state != State::Returning && bee.state != State::Resting) {
-                bee.state = State::Returning;
-            }
-            break;
-        case GoalType::Deliver:
-            if (bee.state != State::Returning) {
-                bee.state = State::Returning;
-            }
-            break;
-        case GoalType::Explore:
-            if (bee.state == State::Resting) {
-                bee.state = State::Exploring;
-                bee.pos = hive;
-                bee.foundNewPatch = false;
-                bee.targetPatch = -1;
-                double angle = uniform_real_distribution<double>(0.0, 2.0 * M_PI)(rng);
-                bee.scoutDirX = cos(angle);
-                bee.scoutDirY = sin(angle);
-            }
-            break;
-        case GoalType::Forage: {
-            if (bee.state == State::Resting) {
-                double totalScore = 0;
-                for (double s : danceScore) totalScore += s;
-                if (totalScore > 0.05) {
-                    uniform_real_distribution<double> pick(0.0, totalScore);
-                    double r = pick(rng);
-                    double acc = 0.0;
-                    int chosen = -1;
-                    for (int i = 0; i < (int)patches.size(); ++i) {
-                        acc += danceScore[i];
-                        if (r <= acc) { chosen = i; break; }
-                    }
-                    if (chosen >= 0 && patches[chosen].nectar > 0.0) {
-                        bee.targetPatch = chosen;
-                        bee.state = State::Foraging;
-                        bee.pos = hive;
-                    }
-                }
-            }
-            break;
-        }
-        case GoalType::Rest:
-            break;
-    }
-}
-
-int main() {
-    const int NUM_BEES = 120;
-    const int NUM_SCOUTS = 15;
-    const int NUM_PATCHES = 10;
-    const int TICKS = 500;
-    const int TRACE_INTERVAL = 5;
-
-    const double SPEED = 3.0;
-    const double SCOUT_SPEED = 5.0;
-    const double ENERGY_COST_MOVE = 0.12;
-    const double ENERGY_RECOVER = 2.0;
-    const double CARRY_CAPACITY = 10.0;
-    const double DETECT_RADIUS = 15.0;
-    const double PATCH_MIN_DIST = 60.0;
-    const double PATCH_MAX_DIST = 150.0;
-    const double HIVE_UPKEEP_PER_BEE = 0.02;
-    const double STARVING_RECOVER_MULT = 0.5;
-
-    const Vec2 hive{0.0, 0.0};
-
-    vector<FlowerPatch> patches;
-    for (int i = 0; i < NUM_PATCHES; ++i) {
-        FlowerPatch patch;
-        patch.id = i;
-        regeneratePatch(patch, PATCH_MIN_DIST, PATCH_MAX_DIST);
-        patches.push_back(patch);
-    }
-
-    vector<Bee> bees;
-    for (int i = 0; i < NUM_BEES; ++i) {
-        Bee bee;
-        bee.id = i;
-        bee.pos = hive;
-        bee.role = (i < NUM_SCOUTS) ? Role::Scout : Role::Worker;
-        bees.push_back(bee);
-    }
-
-    vector<double> danceScore(NUM_PATCHES, 0.0);
-    double hiveNectar = 800.0;
-    double energySpent = 0.0;
-    int totalTrips = 0;
-
-    ofstream traceFile("trace.json");
+    ofstream traceFile(P.outFile);
     traceFile << "[\n";
     bool firstTrace = true;
 
-    for (int tick = 0; tick < TICKS; ++tick) {
-        for (double &score : danceScore) score *= 0.95;
+    for (int t = 0; t < P.ticks; ++t) {
+        sim.step();
 
-        double upkeep = min(hiveNectar, (double)NUM_BEES * HIVE_UPKEEP_PER_BEE);
-        hiveNectar -= upkeep;
-        bool hiveStarving = hiveNectar <= 0;
-
-        for (FlowerPatch &patch : patches) {
-            if (patch.nectar <= 0.0) {
-                for (Bee &bee : bees) {
-                    if (bee.targetPatch == patch.id) {
-                        bee.targetPatch = -1;
-                        bee.state = State::Returning;
-                        bee.foundNewPatch = false;
-                    }
-                }
-                danceScore[patch.id] = 0.0;
-                regeneratePatch(patch, PATCH_MIN_DIST, PATCH_MAX_DIST);
-            }
-        }
-
-        double totalDanceScore = 0.0;
-        for (double s : danceScore) totalDanceScore += s;
-
-        for (Bee &bee : bees) {
-            double energyBefore = bee.energy;
-
-            Goal goal = evaluateGoal(bee, totalDanceScore, hiveStarving);
-            executeGoal(bee, goal, hive, patches, danceScore, rng);
-
-            switch (bee.state) {
-                case State::Resting: {
-                    double recoverRate = hiveStarving ? ENERGY_RECOVER * STARVING_RECOVER_MULT : ENERGY_RECOVER;
-                    bee.energy = min(100.0, bee.energy + recoverRate);
-                    break;
-                }
-
-                case State::Exploring: {
-                    normal_distribution<double> noise(0.0, 0.3);
-                    bee.pos.x += (bee.scoutDirX + noise(rng)) * SCOUT_SPEED;
-                    bee.pos.y += (bee.scoutDirY + noise(rng)) * SCOUT_SPEED;
-                    bee.energy -= ENERGY_COST_MOVE * (SCOUT_SPEED / SPEED);
-
-                    for (FlowerPatch &patch : patches) {
-                        if (patch.nectar > 0.0 && distance(bee.pos, patch.pos) < DETECT_RADIUS) {
-                            bee.targetPatch = patch.id;
-                            patch.discovered = true;
-                            bee.foundNewPatch = true;
-                            bee.state = State::Returning;
-                            break;
-                        }
-                    }
-
-                    if (bee.energy < 20.0 && bee.state == State::Exploring) {
-                        bee.state = State::Returning;
-                        bee.foundNewPatch = false;
-                        bee.targetPatch = -1;
-                    }
-                    break;
-                }
-
-                case State::Foraging: {
-                    if (bee.targetPatch < 0 ||
-                        bee.targetPatch >= (int)patches.size() ||
-                        patches[bee.targetPatch].nectar <= 0.0) {
-                        bee.targetPatch = -1;
-                        bee.state = State::Returning;
-                        break;
-                    }
-                    bee.pos = moveTowards(bee.pos, patches[bee.targetPatch].pos, SPEED);
-                    bee.energy -= ENERGY_COST_MOVE;
-
-                    if (distance(bee.pos, patches[bee.targetPatch].pos) < 2.0) {
-                        double take = min(CARRY_CAPACITY - bee.carrying, patches[bee.targetPatch].nectar);
-                        take = min(take, 2.0);
-                        patches[bee.targetPatch].nectar -= take;
-                        bee.carrying += take;
-
-                        if (bee.carrying >= CARRY_CAPACITY ||
-                            patches[bee.targetPatch].nectar <= 0.0 ||
-                            bee.energy < 25.0) {
-                            bee.state = State::Returning;
-                        }
-                    }
-                    if (bee.energy < 10.0) bee.state = State::Returning;
-                    break;
-                }
-
-                case State::Returning: {
-                    bee.pos = moveTowards(bee.pos, hive, SPEED);
-                    bee.energy -= ENERGY_COST_MOVE;
-
-                    if (distance(bee.pos, hive) < 2.0) {
-                        hiveNectar += bee.carrying;
-                        bee.totalNectarDelivered += bee.carrying;
-                        bee.carrying = 0.0;
-                        bee.tripsCompleted++;
-                        totalTrips++;
-
-                        if (bee.role == Role::Scout && bee.foundNewPatch && bee.targetPatch >= 0) {
-                            bee.state = State::Dancing;
-                            bee.danceTimer = 10.0;
-                        } else {
-                            bee.state = State::Resting;
-                        }
-                    }
-                    break;
-                }
-
-                case State::Dancing: {
-                    if (bee.targetPatch >= 0 && bee.targetPatch < (int)patches.size()) {
-                        FlowerPatch &patch = patches[bee.targetPatch];
-                        if (patch.nectar > 0) {
-                            double d = max(1.0, distance(hive, patch.pos));
-                            double score = patch.nectar / (d + 1.0);
-                            danceScore[bee.targetPatch] += score;
-                        }
-                    }
-                    bee.danceTimer -= 1.0;
-                    bee.energy -= 0.05;
-                    if (bee.danceTimer <= 0.0) bee.state = State::Resting;
-                    break;
-                }
-            }
-
-            double spent = energyBefore - bee.energy;
-            if (spent > 0.0) energySpent += spent;
-
-            if (bee.energy <= 0.0) {
-                bee.energy = 0.0;
-                bee.carrying = 0.0;
-                bee.state = State::Resting;
-                bee.pos = hive;
-            }
-        }
-
-        if (tick % 10 == 0) {
+        if (t % 10 == 0) {
             int counts[5] = {0};
-            for (Bee &bee : bees) {
-                switch (bee.state) {
+            for (const auto& b : sim.bees) {
+                switch (b.state) {
                     case State::Resting: counts[0]++; break;
                     case State::Exploring: counts[1]++; break;
                     case State::Foraging: counts[2]++; break;
@@ -374,66 +63,29 @@ int main() {
                     case State::Dancing: counts[4]++; break;
                 }
             }
-            int discovered = 0, depleted = 0;
-            for (auto &p : patches) {
-                if (p.discovered) discovered++;
-                if (p.nectar <= 0.0) depleted++;
+            int disc = 0, depl = 0;
+            for (const auto& p : sim.patches) {
+                if (p.discovered) disc++;
+                if (p.nectar <= 0.0) depl++;
             }
-            double efficiency = hiveNectar / max(1.0, energySpent);
-
-            cout << "tick=" << tick
-                 << " hive=" << fixed << setprecision(1) << hiveNectar
+            cout << "tick=" << t
+                 << " hive=" << fixed << setprecision(1) << sim.hiveNectar
                  << " rest=" << counts[0]
                  << " explore=" << counts[1]
                  << " forage=" << counts[2]
                  << " return=" << counts[3]
                  << " dance=" << counts[4]
-                 << " disc=" << discovered
-                 << " depl=" << depleted
-                 << " trips=" << totalTrips
-                 << " eff=" << setprecision(3) << efficiency
+                 << " disc=" << disc
+                 << " depl=" << depl
+                 << " trips=" << sim.totalTrips
+                 << " eff=" << setprecision(3) << (sim.hiveNectar / max(1.0, sim.energySpent))
                  << "\n";
         }
 
-        if (tick % TRACE_INTERVAL == 0 || tick == TICKS - 1) {
+        if (t % P.traceInterval == 0 || t == P.ticks - 1) {
             if (!firstTrace) traceFile << ",\n";
             firstTrace = false;
-
-            traceFile << "  {\n";
-            traceFile << "    \"tick\": " << tick << ",\n";
-            traceFile << "    \"hive_nectar\": " << fixed << setprecision(2) << hiveNectar << ",\n";
-            traceFile << "    \"energy_spent\": " << setprecision(2) << energySpent << ",\n";
-            traceFile << "    \"total_trips\": " << totalTrips << ",\n";
-            traceFile << "    \"efficiency\": " << setprecision(4) << (hiveNectar / max(1.0, energySpent)) << ",\n";
-
-            traceFile << "    \"patches\": [\n";
-            for (int i = 0; i < NUM_PATCHES; ++i) {
-                traceFile << "      {\"id\": " << patches[i].id
-                         << ", \"x\": " << setprecision(2) << patches[i].pos.x
-                         << ", \"y\": " << setprecision(2) << patches[i].pos.y
-                         << ", \"nectar\": " << setprecision(2) << patches[i].nectar
-                         << ", \"discovered\": " << (patches[i].discovered ? "true" : "false")
-                         << ", \"depleted\": " << (patches[i].nectar <= 0.0 ? "true" : "false") << "}";
-                if (i < NUM_PATCHES - 1) traceFile << ",";
-                traceFile << "\n";
-            }
-            traceFile << "    ],\n";
-
-            traceFile << "    \"bees\": [\n";
-            for (int i = 0; i < NUM_BEES; ++i) {
-                traceFile << "      {\"id\": " << bees[i].id
-                         << ", \"role\": \"" << roleToString(bees[i].role) << "\""
-                         << ", \"state\": \"" << stateToString(bees[i].state) << "\""
-                         << ", \"x\": " << setprecision(2) << bees[i].pos.x
-                         << ", \"y\": " << setprecision(2) << bees[i].pos.y
-                         << ", \"energy\": " << setprecision(1) << bees[i].energy
-                         << ", \"carrying\": " << setprecision(1) << bees[i].carrying
-                         << ", \"target\": " << bees[i].targetPatch << "}";
-                if (i < NUM_BEES - 1) traceFile << ",";
-                traceFile << "\n";
-            }
-            traceFile << "    ]\n";
-            traceFile << "  }";
+            traceFile << sim.getJson();
         }
     }
 
@@ -441,11 +93,10 @@ int main() {
     traceFile.close();
 
     cout << "\n========================================\n";
-    cout << "Final hive nectar: " << fixed << setprecision(1) << hiveNectar << "\n";
-    cout << "Total energy spent: " << setprecision(1) << energySpent << "\n";
-    cout << "Total trips: " << totalTrips << "\n";
-    cout << "Efficiency: " << setprecision(4) << (hiveNectar / max(1.0, energySpent)) << " nectar/energy\n";
-    cout << "Trace saved to trace.json\n";
-
+    cout << "Final hive nectar: " << fixed << setprecision(1) << sim.hiveNectar << "\n";
+    cout << "Total energy spent: " << setprecision(1) << sim.energySpent << "\n";
+    cout << "Total trips: " << sim.totalTrips << "\n";
+    cout << "Efficiency: " << setprecision(4) << (sim.hiveNectar / max(1.0, sim.energySpent)) << " nectar/energy\n";
+    cout << "Trace saved to " << P.outFile << "\n";
     return 0;
 }
