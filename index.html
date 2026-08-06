@@ -22,7 +22,7 @@
     display: flex; justify-content: space-between; align-items: center;
     flex-shrink: 0; gap: 8px; flex-wrap: wrap;
   }
-  h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
+  h1 { font-size: 16px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; flex-shrink: 0; }
   h1 span { color: var(--accent); }
   .engine-badge {
     font-size: 9px; padding: 2px 6px; border-radius: 4px;
@@ -107,26 +107,25 @@
     border: 1px solid var(--border);
   }
 
+  @media (max-width: 1024px) {
+    .menu-btn { display: block; top: 10px; right: 10px; }
+  }
   @media (max-width: 768px) and (orientation: portrait) {
     header { padding: 5px 6px; min-height: 38px; } h1 { font-size: 11px; }
     .controls { gap: 2px; } button, .btn { padding: 3px 6px; font-size: 10px; }
     input[type="range"] { width: 45px; } .main { flex-direction: column; }
     .sidebar { position: absolute; right: 0; top: 0; bottom: 0; width: 260px; z-index: 40; transform: translateX(100%); }
-    .sidebar.open { transform: translateX(0); } .menu-btn { display: block; }
+    .sidebar.open { transform: translateX(0); }
     .overlay { top: 6px; left: 6px; padding: 7px; font-size: 10px; min-width: 115px; max-width: 150px; }
     .fps-counter { bottom: 6px; right: 6px; font-size: 9px; }
     .wasm-status { top: 6px; right: 45px; font-size: 8px; padding: 2px 5px; }
-    #speed-val { display: none; }
   }
   @media (max-width: 900px) and (orientation: landscape) {
     header { padding: 6px 12px; } h1 { font-size: 14px; }
     .sidebar { width: 200px; padding: 10px; } .chart-container { height: 80px; }
     .overlay { padding: 8px; font-size: 10px; min-width: 130px; }
   }
-  @media (max-width: 400px) {
-    h1 span { display: none; }
-    .engine-badge { display: none; }
-  }
+
 </style>
 </head>
 <body>
