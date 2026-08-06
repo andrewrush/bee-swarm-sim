@@ -60,7 +60,7 @@
     width: 260px; background: var(--panel); border-left: 1px solid var(--border);
     padding: 16px; overflow-y: auto; flex-shrink: 0; transition: transform 0.3s ease;
   }
-  .sidebar.hidden { transform: translateX(100%); }
+  .sidebar.hidden { margin-left: -260px; transform: translateX(100%); opacity: 0; pointer-events: none; }
   .sidebar h2 { font-size: 12px; color: var(--accent); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
   .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; }
   .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
@@ -114,7 +114,7 @@
     header { padding: 5px 6px; min-height: 38px; } h1 { font-size: 11px; }
     .controls { gap: 2px; } button, .btn { padding: 3px 6px; font-size: 10px; }
     input[type="range"] { width: 45px; } .main { flex-direction: column; }
-    .sidebar { position: absolute; right: 0; top: 0; bottom: 0; width: 260px; z-index: 40; transform: translateX(100%); }
+    .sidebar { position: absolute; right: 0; top: 0; bottom: 0; width: 260px; z-index: 40; transform: translateX(100%); margin-left: 0; opacity: 1; }
     .sidebar.open { transform: translateX(0); }
     .overlay { top: 6px; left: 6px; padding: 7px; font-size: 10px; min-width: 115px; max-width: 150px; }
     .fps-counter { bottom: 6px; right: 6px; font-size: 9px; }
